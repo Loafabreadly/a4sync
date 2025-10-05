@@ -1,12 +1,13 @@
 package com.a4sync.client.config;
 
-// import com.a4sync.client.model.Repository;
+import com.a4sync.client.model.Repository;
 import lombok.Data;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import com.a4sync.common.model.GameOptions;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Data
 public class ClientConfig {
@@ -16,8 +17,8 @@ public class ClientConfig {
     private boolean useAuthentication;
     
     // New multi-repository support
-    // @JsonProperty("repositories")
-    // private List<Repository> repositories = new ArrayList<>();
+    @JsonProperty("repositories")
+    private List<Repository> repositories = new ArrayList<>();
     
     private String localModsPath;
     private int maxRetries = 3;
@@ -41,37 +42,43 @@ public class ClientConfig {
         return Collections.unmodifiableList(modDirectories);
     }
     
-    // Repository management methods (simplified for now)
+    // Repository management methods
     public void addRepository(Repository repository) {
-        // TODO: Implement proper multi-repository support
+        if (repositories.stream().noneMatch(r -> r.getId().equals(repository.getId()))) {
+            repositories.add(repository);
+        }
     }
     
     public void removeRepository(String repositoryId) {
-        // TODO: Implement proper multi-repository support
+        repositories.removeIf(r -> r.getId().equals(repositoryId));
     }
     
     public void updateRepository(Repository repository) {
-        // Simplified for now - update the legacy single repository settings
-        if (repository.getUrl() != null) {
-            this.serverUrl = repository.getUrl();
+        for (int i = 0; i < repositories.size(); i++) {
+            if (repositories.get(i).getId().equals(repository.getId())) {
+                repositories.set(i, repository);
+                return;
+            }
         }
-        saveConfig();
-    }
-    
-    public void removeModDirectory(Path path) {
-        modDirectories.remove(path);
+        // If not found, add it
+        repositories.add(repository);
     }
     
     public List<Repository> getRepositories() {
-        return new ArrayList<>(); // Return empty list for now
+        return Collections.unmodifiableList(repositories);
     }
     
     public List<Repository> getEnabledRepositories() {
-        return new ArrayList<>(); // Return empty list for now
+        return repositories.stream()
+            .filter(Repository::isEnabled)
+            .toList();
     }
     
     public Repository getRepositoryById(String id) {
-        return null; // Return null for now
+        return repositories.stream()
+            .filter(r -> r.getId().equals(id))
+            .findFirst()
+            .orElse(null);
     }
     
     // Migration method for backward compatibility
@@ -79,36 +86,30 @@ public class ClientConfig {
         // Simplified - do nothing for now
     }
     
-    // Add missing getters that are being called
-    public String getServerUrl() {
-        return serverUrl;
+    // Add getters that return proper types (Lombok @Data should handle these, but adding for clarity)
+    public String getSteamPathAsString() {
+        return steamPath != null ? steamPath.toString() : null;
     }
     
-    public String getSteamPath() {
-        return steamPath;
+    public String getGamePathAsString() {
+        return gamePath != null ? gamePath.toString() : null;
     }
     
-    public String getGamePath() {
-        return gamePath;
-    }
-    
-    public String getDefaultGameOptions() {
+    public GameOptions getDefaultGameOptionsObject() {
         return defaultGameOptions;
     }
     
-    public String getRepositoryPassword() {
-        return repositoryPassword;
+    // Add missing configuration save method
+    public void saveConfig() {
+        // TODO: Implement configuration persistence
     }
     
-    public boolean isUseAuthentication() {
-        return useAuthentication;
+    // Add missing methods for MultiRepositoryService compatibility
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
     }
     
-    public int getMaxRetries() {
-        return 3; // Default value
-    }
-    
-    public int getRetryDelayMs() {
-        return 1000; // Default value
+    public void setRetryDelayMs(long retryDelayMs) {
+        this.retryDelayMs = retryDelayMs;
     }
 }

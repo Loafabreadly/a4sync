@@ -11,9 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
 public class GameLauncher {
     private final ClientConfig config;
+    
+    public GameLauncher(ClientConfig config) {
+        this.config = config;
+    }
     
     public void launchGame(ModSet modSet) throws IOException {
         if (config.getSteamPath() == null || config.getGamePath() == null) {
@@ -30,8 +33,8 @@ public class GameLauncher {
             command.add("-mod=" + buildModParameter(modSet));
         }
         
-        // Add game options
-        GameOptions options = modSet != null ? modSet.getGameOptions() : config.getDefaultGameOptions();
+        // Add game options  
+        GameOptions options = modSet != null ? modSet.getGameOptions() : config.getDefaultGameOptionsObject();
         if (options != null) {
             if (options.isNoSplash()) {
                 command.add("-nosplash");

@@ -10,9 +10,12 @@ import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.concurrent.CompletableFuture;
 
-@RequiredArgsConstructor
 public class ModManager {
     private final ClientConfig config;
+    
+    public ModManager(ClientConfig config) {
+        this.config = config;
+    }
     
     public boolean isModInstalled(Mod mod) {
         for (Path directory : config.getModDirectories()) {

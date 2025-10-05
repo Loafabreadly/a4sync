@@ -405,4 +405,30 @@ public class MainController {
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
+    
+    public void navigateToUpdatesTab() {
+        if (updatesTab != null) {
+            TabPane tabPane = (TabPane) updatesTab.getTabPane();
+            if (tabPane != null) {
+                tabPane.getSelectionModel().select(updatesTab);
+            }
+        }
+    }
+    
+    private String getRepositoryStatusText(Repository repository) {
+        if (repository.getHealthStatus() == null) {
+            return "Unknown";
+        }
+        return switch (repository.getHealthStatus()) {
+            case HEALTHY -> "Online";
+            case DEGRADED -> "Degraded";
+            case ERROR -> "Offline";
+            case UNKNOWN -> "Unknown";
+        };
+    }
+    
+    private void updateRepositoryStatusDetails(Repository repository) {
+        // TODO: Implement repository status details update
+        // This would update a details panel showing repository information
+    }
 }

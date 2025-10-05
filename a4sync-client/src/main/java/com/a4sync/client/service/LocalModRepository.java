@@ -1,5 +1,6 @@
 package com.a4sync.client.service;
 
+import com.a4sync.client.config.ClientConfig;
 import com.a4sync.common.model.Mod;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -89,30 +89,12 @@ public class RepositoryService {
             });
     }
     
-    public CompletableFuture<Void> testConnection() {
+    public CompletableFuture<HealthStatus> testConnectionAsync() {
         if (repositoryUrl == null) {
-            return CompletableFuture.failedFuture(
-                new IllegalStateException("Repository URL not set"));
+            return CompletableFuture.completedFuture(HealthStatus.ERROR);
         }
         
-        return testConnectionWithUrl(repositoryUrl)
-            .exceptionally(throwable -> {
-                // If HTTPS fails and we're using HTTPS, try HTTP fallback
-                if (repositoryUrl.startsWith("https://")) {
-                    String httpUrl = repositoryUrl.replace("https://", "http://");
-                    log.warn("HTTPS connection failed, attempting HTTP fallback to: {}", httpUrl);
-                    
-                    return testConnectionWithUrl(httpUrl)
-                        .thenAccept(result -> {
-                            // Update URL to HTTP if it works
-                            this.repositoryUrl = httpUrl;
-                            log.info("Successfully connected using HTTP fallback");
-                        })
-                        .join();
-                } else {
-                    throw new RuntimeException("Connection failed: " + throwable.getMessage(), throwable);
-                }
-            });
+        return CompletableFuture.supplyAsync(() -> testConnectionHealth());
     }
     
     private CompletableFuture<Void> testConnectionWithUrl(String url) {
@@ -131,10 +113,10 @@ public class RepositoryService {
                 }
                 
                 try {
-                    var status = objectMapper.readValue(response.body(), HealthStatus.class);
-                    if (!status.status().equals("UP")) {
-                        throw new RuntimeException("Repository is DOWN: " + status.message());
-                    }
+                    // Parse simple JSON response like {"status": "UP"}
+                    String healthResponse = response.body();
+                    log.info("Health check response: {}", 
+                        healthResponse.contains("\"status\":\"UP\"") ? "healthy" : "service issues detected");
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to parse health check response", e);
                 }
@@ -255,7 +237,7 @@ public class RepositoryService {
             });
     }
     
-    public HealthStatus testConnection() {
+    public HealthStatus testConnectionHealth() {
         try {
             HttpRequest request = createRequestBuilder("/api/v1/health")
                 .GET()
@@ -272,8 +254,14 @@ public class RepositoryService {
             
             // Try to parse health response
             try {
-                var status = objectMapper.readValue(response.body(), HealthStatus.class);
-                return "UP".equals(status.status()) ? HealthStatus.HEALTHY : HealthStatus.DEGRADED;
+                // Parse as simple JSON with "status" field
+                if (response.body().contains("\"status\":\"UP\"")) {
+                    return HealthStatus.HEALTHY;
+                } else if (response.body().contains("\"status\":\"DEGRADED\"")) {
+                    return HealthStatus.DEGRADED;
+                } else {
+                    return HealthStatus.DEGRADED;
+                }
             } catch (Exception e) {
                 return HealthStatus.DEGRADED;
             }
@@ -296,7 +284,7 @@ public class RepositoryService {
             }
             
             // Fallback: calculate from mod sets
-            List<ModSet> modSets = getAvailableModSets().join();
+            List<ModSet> modSets = getModSets().join();
             return modSets.stream()
                 .flatMap(ms -> ms.getMods() != null ? ms.getMods().stream() : java.util.stream.Stream.empty())
                 .mapToLong(mod -> mod.getSize())

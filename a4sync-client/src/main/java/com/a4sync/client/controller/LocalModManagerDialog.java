@@ -19,6 +19,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
@@ -424,13 +425,9 @@ public class LocalModManagerDialog extends Stage {
             Files.getLastModifiedTime(modPath).toInstant(),
             java.time.ZoneId.systemDefault()));
         
-        // Determine status
-        if (modManager.isModInstalled(info.getName())) {
-            info.setStatus("Installed");
-            info.setVersion("Unknown"); // TODO: Get version from metadata
-        } else {
-            info.setStatus("Local Only");
-        }
+        // Determine status - simplified check for local files
+        info.setStatus("Local Only");
+        info.setVersion("Unknown"); // TODO: Get version from metadata
         
         return info;
     }

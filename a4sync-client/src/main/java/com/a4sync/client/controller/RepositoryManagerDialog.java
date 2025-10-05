@@ -398,7 +398,7 @@ public class RepositoryManagerDialog extends Stage {
         CompletableFuture.supplyAsync(() -> {
             try {
                 RepositoryService service = new RepositoryService(createConfigForRepository(repository));
-                return service.testConnection();
+                return service.testConnectionHealth();
             } catch (Exception e) {
                 log.error("Failed to test repository connection", e);
                 return HealthStatus.ERROR;

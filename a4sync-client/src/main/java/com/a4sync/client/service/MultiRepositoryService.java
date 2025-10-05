@@ -2,6 +2,7 @@ package com.a4sync.client.service;
 
 import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.model.Repository;
+import com.a4sync.client.model.HealthStatus;
 import com.a4sync.common.model.ModSet;
 import lombok.extern.slf4j.Slf4j;
 
@@ -82,13 +83,12 @@ public class MultiRepositoryService {
         return CompletableFuture.completedFuture("Repository service not found");
     }
     
-    public CompletableFuture<Void> testConnection(Repository repository) {
+    public CompletableFuture<HealthStatus> testConnection(Repository repository) {
         RepositoryService service = repositoryServices.get(repository.getId());
         if (service != null) {
-            return service.testConnection();
+            return CompletableFuture.completedFuture(service.testConnectionHealth());
         }
-        return CompletableFuture.failedFuture(
-            new IllegalStateException("Repository service not found"));
+        return CompletableFuture.completedFuture(HealthStatus.ERROR);
     }
     
     public RepositoryService getRepositoryService(String repositoryId) {
