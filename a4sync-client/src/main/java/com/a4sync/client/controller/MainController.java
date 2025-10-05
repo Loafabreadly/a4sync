@@ -9,6 +9,7 @@ import com.a4sync.client.service.MultiRepositoryService;
 import com.a4sync.client.service.RepositoryManager;
 import com.a4sync.client.service.RepositoryManagerFactory;
 import com.a4sync.client.service.RepositoryService;
+import com.a4sync.common.model.GameType;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
 import javafx.application.Platform;
@@ -30,6 +31,7 @@ public class MainController {
     @FXML private ComboBox<Repository> repositoryComboBox;
     @FXML private TextField modSetName;
     @FXML private TextField profileName;
+    @FXML private ComboBox<GameType> gameTypeComboBox;
     @FXML private CheckBox noSplashCheck;
     @FXML private ListView<String> modList;
     @FXML private TableView<Mod> availableModsTable;
@@ -89,6 +91,7 @@ public class MainController {
         availableModsTable.setItems(availableMods);
         repositoryComboBox.setItems(repositories);
         updatesTable.setItems(updateStatuses);
+        gameTypeComboBox.getItems().addAll(GameType.values());
         
         // Initialize directories field
         searchDirectoryField.setText(config.getModDirectories().isEmpty() ? 
@@ -186,8 +189,18 @@ public class MainController {
         if (repositoryModSet != null) {
             ModSet modSet = repositoryModSet.getModSet();
             modSetName.setText(modSet.getName());
-            profileName.setText(modSet.getGameOptions().getProfileName());
-            noSplashCheck.setSelected(modSet.getGameOptions().isNoSplash());
+            
+            if (modSet.getGameOptions() != null) {
+                profileName.setText(modSet.getGameOptions().getProfileName() != null ? 
+                    modSet.getGameOptions().getProfileName() : "");
+                gameTypeComboBox.setValue(modSet.getGameOptions().getGameType() != null ? 
+                    modSet.getGameOptions().getGameType() : GameType.ARMA_4);
+                noSplashCheck.setSelected(modSet.getGameOptions().isNoSplash());
+            } else {
+                profileName.clear();
+                gameTypeComboBox.setValue(GameType.ARMA_4);
+                noSplashCheck.setSelected(false);
+            }
             
             modList.getItems().clear();
             if (modSet.getMods() != null) {
@@ -200,6 +213,7 @@ public class MainController {
         } else {
             modSetName.clear();
             profileName.clear();
+            gameTypeComboBox.setValue(null);
             noSplashCheck.setSelected(false);
             modList.getItems().clear();
         }
@@ -428,7 +442,55 @@ public class MainController {
     }
     
     private void updateRepositoryStatusDetails(Repository repository) {
-        // TODO: Implement repository status details update
-        // This would update a details panel showing repository information
+        if (repositoryDetailsArea != null && repository != null) {
+            StringBuilder details = new StringBuilder();
+            details.append("Repository: ").append(repository.getName()).append("\n");
+            details.append("URL: ").append(repository.getUrl()).append("\n");
+            details.append("Status: ").append(repository.getHealthStatus()).append("\n");
+            details.append("Mod Count: ").append(repository.getModCount()).append("\n");
+            details.append("Mod Set Count: ").append(repository.getModSetCount()).append("\n");
+            details.append("Total Size: ").append(repository.getTotalSize()).append("\n");
+            details.append("Last Checked: ").append(repository.getLastChecked()).append("\n");
+            repositoryDetailsArea.setText(details.toString());
+        } else if (repositoryDetailsArea != null) {
+            repositoryDetailsArea.clear();
+        }
+    }
+    
+    @FXML
+    private void launchGame() {
+        RepositoryModSet selectedModSet = modSetList.getSelectionModel().getSelectedItem();
+        ModSet modSet = selectedModSet != null ? selectedModSet.getModSet() : null;
+        
+        GameLaunchDialog dialog = new GameLaunchDialog(modSetList.getScene().getWindow(), config, modSet);
+        dialog.showAndWait();
+    }
+    
+    @FXML
+    private void updateMods() {
+        RepositoryModSet selectedModSet = modSetList.getSelectionModel().getSelectedItem();
+        if (selectedModSet == null) {
+            showError("No mod set selected", "Please select a mod set to update.");
+            return;
+        }
+        
+        // TODO: Implement mod update functionality
+        showInfo("Update Mods", "Mod update functionality will be implemented here.");
+    }
+    
+    private void showError(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

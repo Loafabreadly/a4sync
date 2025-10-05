@@ -1,6 +1,7 @@
 package com.a4sync.client.config;
 
 import com.a4sync.client.model.Repository;
+import com.a4sync.common.model.GameType;
 import lombok.Data;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -111,5 +112,20 @@ public class ClientConfig {
     
     public void setRetryDelayMs(long retryDelayMs) {
         this.retryDelayMs = retryDelayMs;
+    }
+    
+    public void saveDefaultGameOptions(GameOptions options) {
+        this.defaultGameOptions = options;
+        saveConfig(); // Persist the configuration
+    }
+    
+    public void saveSteamPath(Path path) {
+        this.steamPath = path;
+        saveConfig();
+    }
+    
+    public void saveGamePath(Path path) {
+        this.gamePath = path;
+        saveConfig();
     }
 }

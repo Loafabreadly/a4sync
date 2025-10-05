@@ -71,8 +71,12 @@
                             <TextField fx:id="profileName" GridPane.rowIndex="1" 
                                      GridPane.columnIndex="1"/>
                             
+                            <Label text="Game:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                            <ComboBox fx:id="gameTypeComboBox" GridPane.rowIndex="2" 
+                                     GridPane.columnIndex="1"/>
+                            
                             <CheckBox fx:id="noSplashCheck" text="No Splash" 
-                                    GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                                    GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                         </GridPane>
                         
                         <Label text="Mods"/>

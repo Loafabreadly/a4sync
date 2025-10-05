@@ -14,4 +14,5 @@ public class GameOptions {
     private boolean noSplash;
     private String additionalParameters;
     private List<String> modDirectories = new ArrayList<>();
+    private GameType gameType = GameType.ARMA_4; // Default to Arma 4
 }
