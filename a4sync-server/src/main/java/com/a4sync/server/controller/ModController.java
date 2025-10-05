@@ -68,7 +68,7 @@ public class ModController {
                 return ResponseEntity.status(206)
                         .header(HttpHeaders.CONTENT_TYPE, "application/octet-stream")
                         .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                        .header(HttpHeaders.CONTENT_RANGE, String.format("bytes %d-%d/%d", start, end, contentLength))
+                        .header(HttpHeaders.CONTENT_RANGE, "bytes %d-%d/%d".formatted(start, end, contentLength))
                         .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(rangeLength))
                         .body(new RangeResource(resource, start, rangeLength));
             }

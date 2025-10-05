@@ -21,7 +21,7 @@ public class AdminController {
     @Operation(summary = "Scan for mods", description = "Scan the mod directory and create/update mod.json files")
     public ResponseEntity<String> scanMods() {
         int count = modManagementService.scanAndUpdateMods();
-        return ResponseEntity.ok(String.format("Successfully scanned and updated %d mods", count));
+        return ResponseEntity.ok("Successfully scanned and updated %d mods".formatted(count));
     }
     
     @PostMapping("/modsets")

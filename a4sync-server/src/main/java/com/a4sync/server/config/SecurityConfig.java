@@ -21,7 +21,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         if (!modProperties.isAuthenticationEnabled()) {
             // If authentication is disabled, allow all requests
             http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
@@ -38,7 +38,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
+    PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 }

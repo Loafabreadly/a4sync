@@ -20,12 +20,12 @@ public class ModConfig {
     }
 
     @Bean
-    public Path rootPath() {
+    Path rootPath() {
         return Path.of(modProperties.getRootDirectory());
     }
 
     @Bean
-    public ObjectMapper modSetObjectMapper() {
+    ObjectMapper modSetObjectMapper() {
         return objectMapper;
     }
 }

@@ -8,9 +8,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenAPIConfig {
-    
+
     @Bean
-    public OpenAPI a4syncOpenAPI() {
+    OpenAPI a4syncOpenAPI() {
         return new OpenAPI()
             .info(new Info()
                 .title("A4Sync Server API")
