@@ -3,18 +3,23 @@ package com.a4sync.client.service;
 import com.a4sync.common.model.Mod;
 import com.a4sync.client.config.ClientConfig;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
+@Slf4j
 public class ModManager {
     private final ClientConfig config;
+    private final ChunkedDownloadService downloadService;
     
     public ModManager(ClientConfig config) {
         this.config = config;
+        this.downloadService = new ChunkedDownloadService();
     }
     
     public boolean isModInstalled(Mod mod) {
@@ -28,24 +33,38 @@ public class ModManager {
     }
     
     public CompletableFuture<Void> downloadMod(Mod mod, String modSetName, String repositoryUrl) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Path targetDir = selectTargetDirectory(mod);
-                Path targetPath = targetDir.resolve(mod.getName());
-                
-                // Download the mod
-                URI uri = URI.create(repositoryUrl + "/api/v1/modsets/" + modSetName + "/mods/" + mod.getName());
-                Files.copy(uri.toURL().openStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                
-                // Verify the download
-                if (!verifyModHash(targetPath, mod.getHash())) {
-                    Files.delete(targetPath);
-                    throw new IOException("Downloaded mod failed hash verification");
+        return downloadMod(mod, modSetName, repositoryUrl, null);
+    }
+    
+    public CompletableFuture<Void> downloadMod(Mod mod, String modSetName, String repositoryUrl, 
+            Consumer<ChunkedDownloadService.DownloadProgress> progressCallback) {
+        Path targetDir = selectTargetDirectory(mod);
+        Path targetPath = targetDir.resolve(mod.getName());
+        
+        String downloadUrl = repositoryUrl + "/api/v1/modsets/" + modSetName + "/mods/" + mod.getName();
+        log.info("Downloading mod {} to {}", mod.getName(), targetPath);
+        
+        return downloadService.downloadFile(downloadUrl, targetPath, mod.getHash(), progressCallback)
+            .thenCompose(success -> {
+                if (!success) {
+                    return CompletableFuture.failedFuture(
+                        new RuntimeException("Failed to download mod: " + mod.getName()));
                 }
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to download mod: " + mod.getName(), e);
-            }
-        });
+                
+                // Additional verification using our existing method
+                if (mod.getHash() != null && !verifyModHash(targetPath, mod.getHash())) {
+                    try {
+                        Files.deleteIfExists(targetPath);
+                    } catch (IOException e) {
+                        log.warn("Failed to delete invalid mod file: {}", targetPath, e);
+                    }
+                    return CompletableFuture.failedFuture(
+                        new IOException("Downloaded mod failed hash verification: " + mod.getName()));
+                }
+                
+                log.info("Successfully downloaded and verified mod: {}", mod.getName());
+                return CompletableFuture.completedFuture(null);
+            });
     }
     
     private Path selectTargetDirectory(Mod mod) {

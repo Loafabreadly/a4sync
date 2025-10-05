@@ -207,36 +207,6 @@ public class RepositoryService {
             });
     }
     
-    public CompletableFuture<byte[]> downloadChunk(String chunkId, long start, long length) {
-        HttpRequest request = createRequestBuilder("/api/v1/chunks/" + chunkId)
-            .header("Range", String.format("bytes=%d-%d", start, start + length - 1))
-            .GET()
-            .build();
-            
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .thenApply(response -> {
-                if (response.statusCode() == 429) {
-                    String retryAfter = response.headers()
-                        .firstValue("X-Rate-Limit-Retry-After")
-                        .orElse("60");
-                    log.warn("Rate limit hit, retry after {} seconds", retryAfter);
-                    throw new RateLimitExceededException(Long.parseLong(retryAfter));
-                }
-                if (response.statusCode() == 401) {
-                    throw new AuthenticationFailedException("Invalid repository password");
-                }
-                if (response.statusCode() != 206 && response.statusCode() != 200) {
-                    throw new RuntimeException("Unexpected response: " + response.statusCode());
-                }
-                byte[] data = response.body();
-                if (data.length != length) {
-                    throw new RuntimeException(
-                        String.format("Expected %d bytes but got %d", length, data.length));
-                }
-                return data;
-            });
-    }
-    
     public HealthStatus testConnectionHealth() {
         try {
             HttpRequest request = createRequestBuilder("/api/v1/health")
