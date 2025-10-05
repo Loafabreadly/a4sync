@@ -58,10 +58,10 @@ public class ModSetService {
         ModSet modSet = new ModSet();
         modSet.setName(path.getFileName().toString());
         try {
-            List<Mod> mods = Files.walk(path)
-                .filter(p -> !Files.isDirectory(p))
-                .filter(p -> p.toString().endsWith(".pbo"))
-                .map(this::createModFromPath)
+            List<Mod> mods = Files.list(path)
+                .filter(Files::isDirectory)
+                .filter(p -> p.getFileName().toString().startsWith("@"))
+                .map(this::createModFromDirectoryPath)
                 .flatMap(Optional::stream)
                 .collect(Collectors.toList());
             modSet.setMods(mods);
@@ -84,31 +84,39 @@ public class ModSetService {
         return createModSetFromPath(rootPath);
     }
 
-    private Optional<Mod> createModFromPath(Path path) {
+    private Optional<Mod> createModFromDirectoryPath(Path modDirectoryPath) {
         try {
             Mod mod = new Mod();
-            mod.setName(path.getFileName().toString());
-            mod.setSize(Files.size(path));
-            mod.setHash(calculateChecksum(path));
-            // Set relative path from root as version
-            String relativePath = rootPath.relativize(path.getParent()).toString();
-            mod.setVersion(relativePath);
-            return Optional.of(mod);
-        } catch (IOException e) {
-            return Optional.empty();
-        }
-    }
-
-    private String calculateChecksum(Path path) throws IOException {
-        try {
+            mod.setName(modDirectoryPath.getFileName().toString());
+            
+            // Calculate total size and combined hash for all files in the mod directory
+            List<Path> allFiles = Files.walk(modDirectoryPath)
+                .filter(p -> !Files.isDirectory(p))
+                .collect(Collectors.toList());
+            
+            long totalSize = 0;
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            try (InputStream is = Files.newInputStream(path)) {
-                byte[] buffer = new byte[BUFFER_SIZE];
-                int read;
-                while ((read = is.read(buffer)) != -1) {
-                    digest.update(buffer, 0, read);
+            
+            // Sort files by path to ensure consistent hash calculation
+            allFiles.sort(Comparator.comparing(Path::toString));
+            
+            for (Path file : allFiles) {
+                totalSize += Files.size(file);
+                // Add file path to hash for structure consistency
+                digest.update(file.getFileName().toString().getBytes());
+                // Add file content to hash
+                try (InputStream is = Files.newInputStream(file)) {
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    int read;
+                    while ((read = is.read(buffer)) != -1) {
+                        digest.update(buffer, 0, read);
+                    }
                 }
             }
+            
+            mod.setSize(totalSize);
+            
+            // Convert hash to hex string
             byte[] hash = digest.digest();
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
@@ -118,9 +126,16 @@ public class ModSetService {
                 }
                 hexString.append(hex);
             }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
+            mod.setHash(hexString.toString());
+            
+            // Set relative path from root as version
+            String relativePath = rootPath.relativize(modDirectoryPath.getParent()).toString();
+            mod.setVersion(relativePath);
+            return Optional.of(mod);
+        } catch (IOException | NoSuchAlgorithmException e) {
+            return Optional.empty();
         }
     }
+
+
 }
