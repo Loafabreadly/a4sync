@@ -21,6 +21,8 @@ import java.util.stream.Stream;
 public class ModManagementService {
     private final ModProperties modProperties;
     private final ObjectMapper objectMapper;
+    private final DiscordWebhookService discordWebhookService;
+    private final ModSetService modSetService;
     
     public int scanAndUpdateMods() {
         Path rootPath = Path.of(modProperties.getRootDirectory());
@@ -41,11 +43,37 @@ public class ModManagementService {
     }
     
     public ModSet createModSet(ModSet modSet) {
+        // Check if modset already exists for version comparison
+        DiscordWebhookService.ModSetVersionInfo previousVersion = null;
+        try {
+            ModSet existingModSet = modSetService.getModSet(modSet.getName()).orElse(null);
+            if (existingModSet != null) {
+                long previousTotalSize = existingModSet.getMods().stream()
+                        .mapToLong(mod -> mod.getSize())
+                        .sum();
+                previousVersion = new DiscordWebhookService.ModSetVersionInfo(
+                    existingModSet.getVersion(),
+                    previousTotalSize,
+                    existingModSet.getMods().size()
+                );
+            }
+        } catch (Exception e) {
+            log.debug("Could not retrieve existing modset for comparison: {}", modSet.getName(), e);
+        }
+        
         Path modSetsDir = Path.of(modProperties.getRootDirectory(), "modsets");
         try {
             Files.createDirectories(modSetsDir);
             Path modSetPath = modSetsDir.resolve(modSet.getName() + ".json");
             objectMapper.writeValue(modSetPath.toFile(), modSet);
+            
+            // Send Discord notification for modset creation/update
+            try {
+                discordWebhookService.sendModsetUpdateNotification(modSet, previousVersion);
+            } catch (Exception e) {
+                log.warn("Failed to send Discord notification for modset {}: {}", modSet.getName(), e.getMessage());
+            }
+            
             return modSet;
         } catch (IOException e) {
             throw new RuntimeException("Failed to create mod set", e);
