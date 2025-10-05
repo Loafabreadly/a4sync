@@ -1,6 +1,7 @@
 package com.a4sync.tools;
 
 import com.a4sync.common.model.ModIndex;
+import com.a4sync.tools.config.ConfigManager;
 import com.a4sync.tools.util.ModUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine.Command;

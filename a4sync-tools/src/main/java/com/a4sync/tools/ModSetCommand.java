@@ -3,6 +3,7 @@ package com.a4sync.tools;
 import com.a4sync.common.model.GameOptions;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
+import com.a4sync.tools.config.ConfigManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -29,10 +30,10 @@ public class ModSetCommand {
         description = "Create a new mod set"
     )
     static class Create implements Callable<Integer> {
-        @Parameters(index = "0", description = "Path to mods directory")
+        @Option(names = {"-r", "--repository"}, description = "Path to repository directory (optional if configured in ~/.a4sync/config.properties)")
         private Path modsDir;
         
-        @Parameters(index = "1", description = "Name of the mod set")
+        @Parameters(index = "0", description = "Name of the mod set")
         private String name;
         
         @Option(names = {"-d", "--description"}, description = "Mod set description")
@@ -46,6 +47,15 @@ public class ModSetCommand {
         
         @Override
         public Integer call() throws Exception {
+            ConfigManager config = new ConfigManager();
+            Path resolvedPath = config.resolveRepositoryPath(modsDir);
+            
+            if (resolvedPath == null) {
+                System.err.println("Error: No repository path specified and no default configured.");
+                System.err.println("Either provide a path or configure repository.default in ~/.a4sync/config.properties");
+                return 1;
+            }
+            
             ModSet modSet = new ModSet();
             modSet.setName(name);
             modSet.setDescription(description != null ? description : name);
@@ -55,7 +65,7 @@ public class ModSetCommand {
             options.setNoSplash(noSplash);
             modSet.setGameOptions(options);
             
-            Path modSetsDir = modsDir.resolve("modsets");
+            Path modSetsDir = resolvedPath.resolve("modsets");
             Files.createDirectories(modSetsDir);
             
             new ObjectMapper().writeValue(
@@ -73,12 +83,20 @@ public class ModSetCommand {
         description = "List all mod sets"
     )
     static class List implements Callable<Integer> {
-        @Parameters(index = "0", description = "Path to mods directory")
+        @Option(names = {"-r", "--repository"}, description = "Path to repository directory (optional if configured in ~/.a4sync/config.properties)")
         private Path modsDir;
         
         @Override
         public Integer call() throws Exception {
-            Path modSetsDir = modsDir.resolve("modsets");
+            ConfigManager config = new ConfigManager();
+            Path resolvedPath = config.resolveRepositoryPath(modsDir);
+            
+            if (resolvedPath == null) {
+                System.err.println("Error: No repository path specified and no default configured.");
+                System.err.println("Either provide a path or configure repository.default in ~/.a4sync/config.properties");
+                return 1;
+            }
+            Path modSetsDir = resolvedPath.resolve("modsets");
             if (!Files.exists(modSetsDir)) {
                 System.out.println("No mod sets found");
                 return 0;
@@ -102,18 +120,27 @@ public class ModSetCommand {
         description = "Add mods to a mod set"
     )
     static class Add implements Callable<Integer> {
-        @Parameters(index = "0", description = "Path to mods directory")
+        @Option(names = {"-r", "--repository"}, description = "Path to repository directory (optional if configured in ~/.a4sync/config.properties)")
         private Path modsDir;
         
-        @Parameters(index = "1", description = "Name of the mod set")
+        @Parameters(index = "0", description = "Name of the mod set")
         private String name;
         
-        @Parameters(index = "2..*", description = "Mods to add")
+        @Parameters(index = "1..*", description = "Mods to add")
         private java.util.List<String> mods;
         
         @Override
         public Integer call() throws Exception {
-            Path modSetFile = modsDir.resolve("modsets").resolve(name + ".json");
+            ConfigManager config = new ConfigManager();
+            Path resolvedPath = config.resolveRepositoryPath(modsDir);
+            
+            if (resolvedPath == null) {
+                System.err.println("Error: No repository path specified and no default configured.");
+                System.err.println("Either provide a path or configure repository.default in ~/.a4sync/config.properties");
+                return 1;
+            }
+            
+            Path modSetFile = resolvedPath.resolve("modsets").resolve(name + ".json");
             if (!Files.exists(modSetFile)) {
                 System.err.println("Mod set not found: " + name);
                 return 1;
@@ -149,18 +176,27 @@ public class ModSetCommand {
         description = "Remove mods from a mod set"
     )
     static class Remove implements Callable<Integer> {
-        @Parameters(index = "0", description = "Path to mods directory")
+        @Option(names = {"-r", "--repository"}, description = "Path to repository directory (optional if configured in ~/.a4sync/config.properties)")
         private Path modsDir;
         
-        @Parameters(index = "1", description = "Name of the mod set")
+        @Parameters(index = "0", description = "Name of the mod set")
         private String name;
         
-        @Parameters(index = "2..*", description = "Mods to remove")
+        @Parameters(index = "1..*", description = "Mods to remove")
         private java.util.List<String> mods;
         
         @Override
         public Integer call() throws Exception {
-            Path modSetFile = modsDir.resolve("modsets").resolve(name + ".json");
+            ConfigManager config = new ConfigManager();
+            Path resolvedPath = config.resolveRepositoryPath(modsDir);
+            
+            if (resolvedPath == null) {
+                System.err.println("Error: No repository path specified and no default configured.");
+                System.err.println("Either provide a path with -r or configure repository.default in ~/.a4sync/config.properties");
+                return 1;
+            }
+            
+            Path modSetFile = resolvedPath.resolve("modsets").resolve(name + ".json");
             if (!Files.exists(modSetFile)) {
                 System.err.println("Mod set not found: " + name);
                 return 1;

@@ -1,7 +1,11 @@
 package com.a4sync.tools;
 
+import com.a4sync.tools.config.ConfigManager;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+
+import java.io.IOException;
+import java.util.concurrent.Callable;
 
 @Command(
     name = "a4sync",
@@ -10,7 +14,8 @@ import picocli.CommandLine.Command;
     subcommands = {
         ModCommand.class,
         ModSetCommand.class,
-        RepoCommand.class
+        RepoCommand.class,
+        A4SyncTools.ConfigCommand.class
     }
 )
 public class A4SyncTools implements Runnable {
@@ -24,5 +29,40 @@ public class A4SyncTools implements Runnable {
     public static void main(String[] args) {
         int exitCode = new CommandLine(new A4SyncTools()).execute(args);
         System.exit(exitCode);
+    }
+    
+    @Command(
+        name = "config",
+        description = "Manage configuration settings",
+        subcommands = {
+            A4SyncTools.ConfigCommand.Init.class
+        }
+    )
+    static class ConfigCommand implements Callable<Integer> {
+        
+        @Command(
+            name = "init",
+            description = "Create example configuration file"
+        )
+        static class Init implements Callable<Integer> {
+            @Override
+            public Integer call() throws Exception {
+                try {
+                    ConfigManager config = new ConfigManager();
+                    config.createExampleConfig();
+                    return 0;
+                } catch (IOException e) {
+                    System.err.println("Error creating configuration file: " + e.getMessage());
+                    return 1;
+                }
+            }
+        }
+        
+        @Override
+        public Integer call() throws Exception {
+            // Show help by default
+            CommandLine.usage(this, System.out);
+            return 0;
+        }
     }
 }

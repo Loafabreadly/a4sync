@@ -11,35 +11,59 @@ Create an alias for convenience:
 alias a4sync='java -jar /path/to/a4sync-tools.jar'
 ```
 
+## Quick Start
+
+1. **Create configuration file**:
+   ```bash
+   a4sync config init
+   ```
+
+2. **Edit the configuration** (`~/.a4sync/config.properties`) to set your default repository path:
+   ```properties
+   repository.default=/path/to/your/repository
+   ```
+
+3. **Initialize your repository**:
+   ```bash
+   a4sync repo init
+   ```
+
+Now you can use all commands without specifying paths!
+
 ## Repository Management
 
 ### Initialize Repository
 ```bash
-a4sync repo init /path/to/repository [--auth]
+a4sync repo init [/path/to/repository] [--auth]
 ```
 Creates a new repository with the required structure:
-- `/mods` directory for mod storage
 - `/modsets` directory for mod set definitions
 - `repository.properties` configuration file
 
+**Note**: Repository path is optional if `repository.default` is configured in `~/.a4sync/config.properties`
+
 ### Validate Repository
 ```bash
-a4sync repo validate /path/to/repository
+a4sync repo validate [/path/to/repository]
 ```
 Checks repository structure and files:
 - Directory structure
 - Mod configurations
 - File permissions
 
+**Note**: Repository path is optional if `repository.default` is configured in `~/.a4sync/config.properties`
+
 ### Show Repository Status
 ```bash
-a4sync repo status /path/to/repository
+a4sync repo status [/path/to/repository]
 ```
 Displays:
 - Number of mods
 - Number of mod sets
 - Total repository size
 - Last update time
+
+**Note**: Repository path is optional if `repository.default` is configured in `~/.a4sync/config.properties`
 
 ## Mod Management
 
@@ -81,30 +105,29 @@ Shows installed mods with optional details:
 
 ### Create Mod Set
 ```bash
-a4sync modset create /path/to/repository "Set Name" [@Mod1 @Mod2...]
+a4sync modset create [-r /path/to/repository] "Set Name"
 ```
-Creates a new mod set with specified mods.
+Creates a new mod set. Repository path is optional if configured in `~/.a4sync/config.properties`.
 
-### Update Mod Set
+### Add Mods to Set
 ```bash
-a4sync modset update /path/to/repository "Set Name" [@Mod1 @Mod2...]
+a4sync modset add [-r /path/to/repository] "Set Name" @Mod1 @Mod2...
 ```
-Updates mod list in existing mod set.
+Adds mods to an existing mod set.
 
-### Remove Mod Set
+### Remove Mods from Set
 ```bash
-a4sync modset remove /path/to/repository "Set Name"
+a4sync modset remove [-r /path/to/repository] "Set Name" @Mod1 @Mod2...
 ```
-Removes a mod set definition.
+Removes mods from an existing mod set.
 
 ### List Mod Sets
 ```bash
-a4sync modset list /path/to/repository [--details]
+a4sync modset list [-r /path/to/repository]
 ```
-Shows defined mod sets with optional details:
-- Included mods
-- Total size
-- Required space
+Shows all defined mod sets with descriptions.
+
+**Note**: All modset commands support the `-r` or `--repository` option to specify repository path, or use the default from `~/.a4sync/config.properties`
 
 ## Advanced Features
 
@@ -134,8 +157,14 @@ a4sync mod verify-all /path/to/repository
 
 ## Configuration
 
+### Initialize Configuration
+```bash
+a4sync config init
+```
+Creates an example configuration file at `~/.a4sync/config.properties` with default settings that you can customize.
+
 ### Global Settings
-Create `~/.a4sync/config.properties`:
+The configuration file `~/.a4sync/config.properties` supports:
 ```properties
 # Default repository path
 repository.default=/path/to/repository
@@ -169,12 +198,17 @@ a4sync repo init /mods
 a4sync mod add /mods "@CBA_A4"
 a4sync mod add /mods "@ACE"
 
-# Create mod set
-a4sync modset create /mods "Basic Mods" @CBA_A4 @ACE
+# Configure default repository
+a4sync config init
+# Edit ~/.a4sync/config.properties to set repository.default=/mods
 
-# Verify setup
-a4sync repo validate /mods
-a4sync repo status /mods
+# Create mod set
+a4sync modset create "Basic Mods"
+a4sync modset add "Basic Mods" @CBA_A4 @ACE
+
+# Verify setup  
+a4sync repo validate
+a4sync repo status
 ```
 
 ### Updating Mods
@@ -191,12 +225,21 @@ a4sync mod verify-all /mods
 
 ### Managing Mod Sets
 ```bash
-# Create training set
-a4sync modset create /mods "Training" @CBA_A4 @ACE @Training_Mods
+# Setup configuration (once)
+a4sync config init
+# Edit ~/.a4sync/config.properties to set repository.default=/mods
 
-# Create operations set
-a4sync modset create /mods "Operations" @CBA_A4 @ACE @Operation_Mods
+# Create training set
+a4sync modset create "Training"
+a4sync modset add "Training" @CBA_A4 @ACE @Training_Mods
+
+# Create operations set  
+a4sync modset create "Operations"
+a4sync modset add "Operations" @CBA_A4 @ACE @Operation_Mods
 
 # List all sets
-a4sync modset list /mods --details
+a4sync modset list
+
+# Or specify repository explicitly
+a4sync modset list -r /different/path
 ```
