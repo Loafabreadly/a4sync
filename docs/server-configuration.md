@@ -7,13 +7,13 @@ This guide explains how to set up and configure the A4Sync server for hosting mo
 1. **Setup Repository** (use a4sync-tools CLI):
    ```bash
    # Initialize repository
-   java -jar a4sync-tools.jar repo init /a4sync
+   java -jar a4sync-tools.jar repo init -r /a4sync
    
    # Add mods
-   java -jar a4sync-tools.jar mod add /a4sync @MyMod --source=/path/to/mod
+   java -jar a4sync-tools.jar mod create /a4sync/@MyMod --source=/path/to/mod
    
    # Create mod sets
-   java -jar a4sync-tools.jar modset create "Training Mods"
+   java -jar a4sync-tools.jar modset create "Training Mods" -r /a4sync
    ```
 
 2. **Configure Server** (`application.properties`):
@@ -92,15 +92,15 @@ java -jar a4sync-tools.jar config init
 java -jar a4sync-tools.jar repo init
 
 # 4. Add your mods
-java -jar a4sync-tools.jar mod add "@CBA_A4" --source=/path/to/cba
-java -jar a4sync-tools.jar mod add "@ACE" --source=/path/to/ace
+java -jar a4sync-tools.jar mod create /a4sync/@CBA_A4 --source=/path/to/cba
+java -jar a4sync-tools.jar mod create /a4sync/@ACE --source=/path/to/ace
 
 # 5. Create mod sets
-java -jar a4sync-tools.jar modset create "Basic Mods"
-java -jar a4sync-tools.jar modset add "Basic Mods" @CBA_A4 @ACE
+java -jar a4sync-tools.jar modset create "Basic Mods" -r /a4sync
+java -jar a4sync-tools.jar modset add "Basic Mods" @CBA_A4 @ACE -r /a4sync
 
 # 6. Verify setup
-java -jar a4sync-tools.jar repo status
+java -jar a4sync-tools.jar repo status -r /a4sync
 ```
 
 ### Phase 2: Server Configuration & Deployment

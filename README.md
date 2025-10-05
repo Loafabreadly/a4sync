@@ -8,7 +8,7 @@ A modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync
 - 🔄 Multiple mod set support with flexible organization
 - 🔒 Repository authentication with SHA-256 password hashing
 - 📊 File integrity verification with checksums
-- 🛠️ CLI tools for repository management
+- 🛠️ CLI tools with tab auto-completion for repository management
 - 🐳 Docker support for easy deployment
 
 ## Quick Links
@@ -30,7 +30,7 @@ Download the latest version from [Releases](../../releases):
 
 ### Requirements
 
-- Java 25 or later
+- Java 21 or later
 - For server: 
   - 2GB RAM minimum
   - Storage space for mods
@@ -45,8 +45,11 @@ java -jar a4sync-client.jar
 # Start the server
 java -jar a4sync-server.jar --spring.config.location=application.properties
 
-# Use CLI tools
+# Use CLI tools (with tab completion)
 java -jar a4sync-tools.jar repo status /path/to/repo
+
+# Setup tab completion
+./scripts/setup-completion.sh --jar-path a4sync-tools.jar
 ```
 
 For detailed setup and usage instructions, please refer to the documentation links above.
