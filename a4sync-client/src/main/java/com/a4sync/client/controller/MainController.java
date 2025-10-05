@@ -1,6 +1,6 @@
 package com.a4sync.client.controller;
 
-import com.a4sync.client.service.ClientConfig;
+import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
 import com.a4sync.client.service.RepositoryService;
@@ -42,7 +42,7 @@ public class MainController {
         this.config = new ClientConfig();
         this.modManager = new ModManager(config);
         this.gameLauncher = new GameLauncher(config);
-        this.repositoryService = new RepositoryService();
+        this.repositoryService = new RepositoryService(config);
         this.modSets = FXCollections.observableArrayList();
         this.availableMods = FXCollections.observableArrayList();
     }
@@ -252,12 +252,13 @@ public class MainController {
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(url -> {
             try {
-                repositoryService.connect(url);
+                config.setServerUrl(url);
                 repositoryService.getModSets()
                     .thenAccept(serverModSets -> {
                         Platform.runLater(() -> {
                             modSets.clear();
                             modSets.addAll(serverModSets);
+                            repositoryUrlField.setText(url);
                         });
                     })
                     .exceptionally(e -> {

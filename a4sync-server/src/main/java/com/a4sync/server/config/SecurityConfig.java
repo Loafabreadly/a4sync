@@ -1,5 +1,6 @@
 package com.a4sync.server.config;
 
+import com.a4sync.server.security.RepositoryAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
