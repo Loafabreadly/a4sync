@@ -32,8 +32,8 @@ repository.description=Official unit mod repository
 repository.version=1.0
 
 # Authentication
-repository.auth.enabled=false
-repository.auth.type=basic
+a4sync.authentication-enabled=false
+a4sync.repository-password=<bcrypt-hash>  # Generated using PasswordUtils
 
 # Performance
 repository.max-chunk-size=52428800
@@ -170,13 +170,22 @@ chmod 644 /repository/repository.properties
 chmod 644 /repository/modsets/*.json
 ```
 
-### Authentication Files
+### Authentication
 
-If using authentication:
-```properties
-# users.properties
-admin=$2a$10$...  # BCrypt hash
-reader=$2a$10$... # BCrypt hash
+The repository uses a single password-based authentication system:
+
+1. Server stores a BCrypt hash of the repository password in `application.properties`
+2. Clients send a SHA-256 hash of their password in the `X-Repository-Auth` header
+3. Server verifies the client's SHA-256 hash against its stored BCrypt hash
+
+To set up authentication:
+```bash
+# Generate password hashes
+java -cp a4sync-server.jar com.a4sync.server.util.PasswordUtils mypassword
+
+# Add the BCrypt hash to application.properties
+a4sync.authentication-enabled=true
+a4sync.repository-password=<bcrypt-hash>
 ```
 
 ## Optimization

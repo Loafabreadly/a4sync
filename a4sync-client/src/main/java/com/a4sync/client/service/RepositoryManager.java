@@ -15,7 +15,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -116,10 +118,15 @@ public class RepositoryManager {
                         .header("Accept", "application/json");
                         
                     // Add authentication if enabled
-                    if (repo.isEnabled() && repo.getUsername() != null && !repo.getUsername().isEmpty()) {
-                        String auth = repo.getUsername() + ":" + repo.getPassword();
-                        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-                        requestBuilder.header("Authorization", "Basic " + encodedAuth);
+                    if (repo.isEnabled() && repo.getPassword() != null && !repo.getPassword().isEmpty()) {
+                        try {
+                            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                            byte[] hash = digest.digest(repo.getPassword().getBytes(StandardCharsets.UTF_8));
+                            String authHeader = HexFormat.of().formatHex(hash);
+                            requestBuilder.header("X-Repository-Auth", authHeader);
+                        } catch (NoSuchAlgorithmException e) {
+                            throw new RuntimeException("SHA-256 not available", e);
+                        }
                     }
                     
                     HttpRequest request = requestBuilder.build();

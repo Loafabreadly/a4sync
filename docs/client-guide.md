@@ -30,9 +30,8 @@ This guide explains how to use the A4Sync client to download and manage Arma 4 m
 2. Enter repository details:
    - Name: A friendly name for the repository
    - URL: The repository address (e.g., `http://mods.unit.com:8080`)
-   - Authentication (if required):
-     - Username
-     - Password
+   - Password (if required):
+     The repository password will be automatically hashed before being sent to the server
 
 ## Managing Mods
 

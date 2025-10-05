@@ -10,7 +10,6 @@ import java.time.Instant;
 public class RepositoryConfig {
     private String name;
     private String url;
-    private String username;
     private String password;
     private boolean enabled;
     private boolean checkOnStartup;

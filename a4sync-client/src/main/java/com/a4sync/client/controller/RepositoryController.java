@@ -84,7 +84,6 @@ public class RepositoryController {
         
         TextField nameField = new TextField();
         TextField urlField = new TextField();
-        TextField userField = new TextField();
         PasswordField passField = new PasswordField();
         CheckBox enabledCheck = new CheckBox();
         enabledCheck.setSelected(true);
@@ -95,11 +94,9 @@ public class RepositoryController {
         grid.add(nameField, 1, 0);
         grid.add(new Label("URL:"), 0, 1);
         grid.add(urlField, 1, 1);
-        grid.add(new Label("Username:"), 0, 2);
-        grid.add(userField, 1, 2);
-        grid.add(new Label("Password:"), 0, 3);
-        grid.add(passField, 1, 3);
-        grid.add(new Label("Enabled:"), 0, 4);
+        grid.add(new Label("Password:"), 0, 2);
+        grid.add(passField, 1, 2);
+        grid.add(new Label("Enabled:"), 0, 3);
         grid.add(enabledCheck, 1, 4);
         grid.add(new Label("Check on startup:"), 0, 5);
         grid.add(checkOnStartupBox, 1, 5);
@@ -112,7 +109,6 @@ public class RepositoryController {
                 RepositoryConfig config = new RepositoryConfig();
                 config.setName(nameField.getText());
                 config.setUrl(urlField.getText());
-                config.setUsername(userField.getText());
                 config.setPassword(passField.getText());
                 config.setEnabled(enabledCheck.isSelected());
                 config.setCheckOnStartup(checkOnStartupBox.isSelected());

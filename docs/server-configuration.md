@@ -20,10 +20,8 @@ repository.max-chunk-size=52428800  # 50MB chunks
 repository.parallel-downloads=3
 
 # Security Settings (Optional)
-repository.auth.enabled=false
-repository.auth.type=basic
-repository.auth.users[0].username=admin
-repository.auth.users[0].password={bcrypt}$2a$10$...
+a4sync.authentication-enabled=false
+a4sync.repository-password=<bcrypt-hash>  # Generated with PasswordUtils
 ```
 
 ## Directory Structure
