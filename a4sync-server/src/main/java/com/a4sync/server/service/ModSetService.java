@@ -18,11 +18,8 @@ import java.util.stream.Collectors;
 public class ModSetService {
     private static final int BUFFER_SIZE = 8192;
     private final Path rootPath;
-    private final ObjectMapper objectMapper;
-
     public ModSetService(Path rootPath, ObjectMapper modSetObjectMapper) {
         this.rootPath = rootPath;
-        this.objectMapper = modSetObjectMapper;
         initializeRootPath();
     }
 

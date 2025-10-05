@@ -2,7 +2,6 @@ package com.a4sync.server.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
@@ -14,9 +13,10 @@ public class ModConfig {
     private final ModProperties modProperties;
     private final ObjectMapper objectMapper;
 
-    public ModConfig(ModProperties modProperties, ObjectMapper objectMapper) {
+    public ModConfig(ModProperties modProperties) {
         this.modProperties = modProperties;
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.findAndRegisterModules();
     }
 
     @Bean
@@ -26,9 +26,7 @@ public class ModConfig {
 
     @Bean
     public ObjectMapper modSetObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules();
-        return mapper;
+        return objectMapper;
     }
 }
 

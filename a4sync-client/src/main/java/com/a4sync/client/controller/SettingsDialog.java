@@ -11,7 +11,6 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Optional;
 
 public class SettingsDialog extends Stage {
     private final ClientConfig config;

@@ -1,7 +1,6 @@
 package com.a4sync.client.service;
 
 import com.a4sync.common.model.Mod;
-import com.a4sync.common.model.ModSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.io.*;
@@ -9,7 +8,6 @@ import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class LocalModRepository {
@@ -31,12 +29,9 @@ public class LocalModRepository {
      * Extended mod metadata for local storage
      */
     private static class LocalModMetadata {
-        String name;
         String version;
         String fullHash;
         List<ModChunk> chunks;
-        long lastUpdated;
-        Map<String, String> additionalHashes; // For additional files within the mod
     }
 
     /**
@@ -179,12 +174,12 @@ public class LocalModRepository {
             new HashMap<>();
 
         LocalModMetadata meta = new LocalModMetadata();
-        meta.name = remoteMod.getName();
+        remoteMod.getName();
         meta.version = remoteMod.getVersion();
         meta.fullHash = remoteMod.getHash();
-        meta.lastUpdated = System.currentTimeMillis();
+        System.currentTimeMillis();
         meta.chunks = calculateChunks(modPath);
-        meta.additionalHashes = calculateAdditionalHashes(modPath);
+        calculateAdditionalHashes(modPath);
 
         allMeta.put(remoteMod.getName(), meta);
         objectMapper.writeValue(metaPath.toFile(), allMeta);

@@ -1,7 +1,6 @@
 package com.a4sync.client.service;
 
 import com.a4sync.common.model.Mod;
-import com.a4sync.common.model.ModSet;
 import com.a4sync.client.config.ClientConfig;
 import lombok.RequiredArgsConstructor;
 

@@ -24,7 +24,7 @@ a4sync/
 
 ### Server Setup
 
-1. Create a configuration file `application.properties`:
+1. Create a configuration file `application.properties` in the same directory as the server jar:
 ```properties
 server.port=8080
 a4sync.root-directory=/path/to/mods
@@ -35,6 +35,8 @@ a4sync.authentication-enabled=false
 ```bash
 java -jar a4sync-server.jar
 ```
+
+Note: The root directory must exist and be writable by the server process.
 
 Or using Docker:
 ```bash
