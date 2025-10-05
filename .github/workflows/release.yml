@@ -22,6 +22,14 @@ jobs:
         distribution: 'temurin'
         cache: maven
         
+    - name: Set release version
+      run: |
+        # Extract version from tag (remove 'v' prefix)
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Setting version to: $VERSION"
+        # Set the version in all POM files
+        mvn versions:set -DnewVersion=$VERSION -DgenerateBackupPoms=false
+        
     - name: Build with Maven
       run: mvn -B package --file pom.xml
       
