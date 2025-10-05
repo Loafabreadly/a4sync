@@ -31,6 +31,7 @@ jobs:
         files: |
           a4sync-tools/target/a4sync-tools-*.jar
           a4sync-server/target/a4sync-server-*.jar
+          a4sync-client/target/a4sync-client-*.jar
         draft: true
         prerelease: false
         generate_release_notes: true

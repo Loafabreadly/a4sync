@@ -22,6 +22,9 @@
             <MenuItem text="Connect" onAction="#connectToRepository"/>
             <MenuItem text="Refresh" onAction="#refreshRepository"/>
         </Menu>
+        <Menu text="Help">
+            <MenuItem text="About" onAction="#showAboutDialog"/>
+        </Menu>
     </MenuBar>
 
     <TabPane VBox.vgrow="ALWAYS">

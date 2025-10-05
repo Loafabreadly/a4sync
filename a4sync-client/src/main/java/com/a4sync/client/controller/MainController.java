@@ -94,6 +94,16 @@ public class MainController {
         }
     }
     
+    @FXML
+    protected void showAboutDialog() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("About A4Sync");
+        alert.setHeaderText("A4Sync Client");
+        alert.setContentText(com.a4sync.common.version.VersionInfo.getInstance().toString());
+        alert.getButtonTypes().setAll(ButtonType.OK);
+        alert.showAndWait();
+    }
+
     private String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024) + " KB";
@@ -258,7 +268,19 @@ public class MainController {
                 repositoryService.setRepositoryUrl(url);
                 
                 repositoryService.testConnection()
-                    .thenCompose(v -> repositoryService.getModSets())
+                    .thenCompose(v -> repositoryService.checkVersionCompatibility())
+                    .thenCompose(versionWarning -> {
+                        if (versionWarning != null) {
+                            Platform.runLater(() -> {
+                                Alert alert = new Alert(Alert.AlertType.WARNING);
+                                alert.setTitle("Version Mismatch");
+                                alert.setHeaderText("Different versions detected");
+                                alert.setContentText(versionWarning);
+                                alert.show();
+                            });
+                        }
+                        return repositoryService.getModSets();
+                    })
                     .thenAccept(serverModSets -> {
                         Platform.runLater(() -> {
                             modSets.clear();

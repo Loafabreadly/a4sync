@@ -3,7 +3,9 @@ package com.a4sync.client.service;
 import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.exception.AuthenticationFailedException;
 import com.a4sync.client.exception.RateLimitExceededException;
+import com.a4sync.client.model.HealthStatus;
 import com.a4sync.common.model.ModSet;
+import com.a4sync.common.version.VersionInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +48,41 @@ public class RepositoryService {
         } else {
             this.repositoryUrl = null;
         }
+    }
+    
+    /**
+     * Checks version compatibility with the repository server.
+     * @return A warning message if versions don't match, null otherwise
+     */
+    public CompletableFuture<String> checkVersionCompatibility() {
+        if (repositoryUrl == null) {
+            return CompletableFuture.completedFuture("Repository URL not set");
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(repositoryUrl + "api/version"))
+            .GET()
+            .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenApply(response -> {
+                if (response.statusCode() == 200) {
+                    try {
+                        VersionInfo serverVersion = objectMapper.readValue(response.body(), VersionInfo.class);
+                        return VersionInfo.getInstance().checkCompatibility(serverVersion);
+                    } catch (Exception e) {
+                        log.warn("Failed to parse server version info", e);
+                        return "Failed to parse server version information";
+                    }
+                } else {
+                    log.warn("Failed to get server version info, status: {}", response.statusCode());
+                    return "Failed to get server version information";
+                }
+            })
+            .exceptionally(throwable -> {
+                log.warn("Failed to connect to server for version check", throwable);
+                return "Failed to connect to server for version check";
+            });
     }
     
     private record HealthStatus(String status, String message) {}
