@@ -25,9 +25,9 @@
     "description": "Maximum number of tokens in the rate limit bucket"
   },
   {
-    "name": "a4sync.repository-name",
+    "name": "a4sync.repository.config-file",
     "type": "java.lang.String",
-    "description": "Display name of the repository"
+    "description": "Path to the repository configuration file"
   },
   {
     "name": "a4sync.repository-description",

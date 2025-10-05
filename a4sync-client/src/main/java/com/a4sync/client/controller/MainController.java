@@ -174,7 +174,7 @@ public class MainController {
 
         selected.getMods().forEach(mod -> {
             if (!modManager.isModInstalled(mod)) {
-                modManager.downloadMod(mod, repositoryService.getRepositoryUrl())
+                modManager.downloadMod(mod, selected.getName(), repositoryService.getRepositoryUrl())
                     .thenRun(() -> {
                         completedMods[0]++;
                         Platform.runLater(() -> {

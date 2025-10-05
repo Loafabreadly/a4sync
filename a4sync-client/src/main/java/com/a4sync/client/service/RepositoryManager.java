@@ -112,7 +112,7 @@ public class RepositoryManager {
 
                 try {
                     // Fetch remote mod sets
-                    String url = repo.getUrl() + "/api/modsets";
+                    String url = repo.getUrl() + "/api/v1/modsets";
                     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .header("Accept", "application/json");

@@ -141,7 +141,7 @@ public class RepositoryService {
     }
     
     public CompletableFuture<ModSet> getAutoConfig() {
-        HttpRequest request = createRequestBuilder("/api/v1/modsets/auto")
+        HttpRequest request = createRequestBuilder("/api/v1/autoconfig")
             .GET()
             .build();
             

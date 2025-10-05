@@ -24,14 +24,14 @@ public class ModManager {
         return false;
     }
     
-    public CompletableFuture<Void> downloadMod(Mod mod, String repositoryUrl) {
+    public CompletableFuture<Void> downloadMod(Mod mod, String modSetName, String repositoryUrl) {
         return CompletableFuture.runAsync(() -> {
             try {
                 Path targetDir = selectTargetDirectory(mod);
                 Path targetPath = targetDir.resolve(mod.getName());
                 
                 // Download the mod
-                URI uri = URI.create(repositoryUrl + "/api/v1/download/" + mod.getName());
+                URI uri = URI.create(repositoryUrl + "/api/v1/modsets/" + modSetName + "/mods/" + mod.getName());
                 Files.copy(uri.toURL().openStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
                 
                 // Verify the download
