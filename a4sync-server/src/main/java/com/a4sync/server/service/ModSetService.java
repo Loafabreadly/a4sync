@@ -1,7 +1,9 @@
 package com.a4sync.server.service;
 
+import com.a4sync.common.model.A4SyncConfig;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
+import com.a4sync.common.model.RepositoryInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -11,6 +13,7 @@ import java.io.InputStream;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -82,6 +85,47 @@ public class ModSetService {
 
     public ModSet generateAutoConfig() {
         return createModSetFromPath(rootPath);
+    }
+    
+    public RepositoryInfo generateRepositoryInfo() {
+        RepositoryInfo repoInfo = new RepositoryInfo();
+        repoInfo.setName("A4Sync Repository");
+        repoInfo.setDescription("Auto-generated repository configuration");
+        repoInfo.setVersion("1.0");
+        repoInfo.setLastUpdated(LocalDateTime.now());
+        
+        // Get all available modsets
+        repoInfo.setModSets(getAllModSets());
+        
+        // Set repository configuration
+        RepositoryInfo.RepositoryConfig config = new RepositoryInfo.RepositoryConfig();
+        config.setMaxChunkSize(52428800L); // 50MB chunks
+        config.setParallelDownloads(3);
+        config.setAuthenticationRequired(false); // TODO: Read from server config
+        config.setCompressionEnabled(true);
+        config.setSupportedClientVersion("1.0");
+        repoInfo.setConfig(config);
+        
+        return repoInfo;
+    }
+    
+    public A4SyncConfig generateA4SyncConfig(jakarta.servlet.http.HttpServletRequest request) {
+        // Generate base URL from request
+        String baseUrl = request.getScheme() + "://" + 
+                        request.getServerName() + 
+                        (request.getServerPort() != 80 && request.getServerPort() != 443 ? 
+                         ":" + request.getServerPort() : "") + 
+                        request.getContextPath() + "/api/v1";
+        
+        A4SyncConfig config = A4SyncConfig.createDefault("A4Sync Repository", baseUrl);
+        
+        // Update with actual repository information
+        config.getRepository().setName("A4Sync Server Repository");
+        config.getRepository().setDescription("Auto-generated A4Sync repository configuration");
+        config.getRepository().setMaintainer("A4Sync Administrator");
+        config.getRepository().setLastUpdated(LocalDateTime.now());
+        
+        return config;
     }
 
     private Optional<Mod> createModFromDirectoryPath(Path modDirectoryPath) {

@@ -1,6 +1,8 @@
 package com.a4sync.server.controller;
 
+import com.a4sync.common.model.A4SyncConfig;
 import com.a4sync.common.model.ModSet;
+import com.a4sync.common.model.RepositoryInfo;
 import com.a4sync.server.resource.RangeResource;
 import com.a4sync.server.service.ModSetService;
 import org.springframework.core.io.Resource;
@@ -8,6 +10,8 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -88,6 +92,26 @@ public class ModController {
         try {
             ModSet autoConfig = modSetService.generateAutoConfig();
             return ResponseEntity.ok(autoConfig);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @GetMapping("/repository/info")
+    public ResponseEntity<RepositoryInfo> getRepositoryInfo() {
+        try {
+            RepositoryInfo repositoryInfo = modSetService.generateRepositoryInfo();
+            return ResponseEntity.ok(repositoryInfo);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @GetMapping(value = {"/a4sync.json", "/.a4sync", "/config"})
+    public ResponseEntity<A4SyncConfig> getA4SyncConfig(HttpServletRequest request) {
+        try {
+            A4SyncConfig config = modSetService.generateA4SyncConfig(request);
+            return ResponseEntity.ok(config);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
