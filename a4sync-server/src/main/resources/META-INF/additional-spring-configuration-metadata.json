@@ -1,0 +1,67 @@
+{"properties": [
+  {
+    "name": "a4sync.rate-limit.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable rate limiting for downloads"
+  },
+  {
+    "name": "a4sync.authentication-enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable repository authentication"
+  },
+  {
+    "name": "a4sync.chunks.max-size",
+    "type": "java.lang.Long",
+    "description": "Maximum size of mod chunks in bytes"
+  },
+  {
+    "name": "a4sync.chunks.min-free-space",
+    "type": "java.lang.Long",
+    "description": "Minimum free space required on disk for new uploads"
+  },
+  {
+    "name": "a4sync.rate-limit.capacity",
+    "type": "java.lang.Integer",
+    "description": "Maximum number of tokens in the rate limit bucket"
+  },
+  {
+    "name": "a4sync.repository-name",
+    "type": "java.lang.String",
+    "description": "Display name of the repository"
+  },
+  {
+    "name": "a4sync.repository-description",
+    "type": "java.lang.String",
+    "description": "Description of the repository contents"
+  },
+  {
+    "name": "a4sync.chunks.temp-directory",
+    "type": "java.lang.String",
+    "description": "Directory for temporary chunk storage during uploads"
+  },
+  {
+    "name": "a4sync.rate-limit.per-ip",
+    "type": "java.lang.Boolean",
+    "description": "Apply rate limiting per IP address instead of globally"
+  },
+  {
+    "name": "a4sync.root-directory",
+    "type": "java.lang.String",
+    "description": "Root directory where all repository files are stored"
+  },
+{
+    "name": "a4sync.chunks.parallel",
+    "type": "java.lang.Integer",
+    "description": "The number of parallel chunk uploads allowed per stream"
+  }
+,{
+    "name": "a4sync.chunks.validate-hashes",
+    "type": "java.lang.Boolean",
+    "description": "Whether to validate chunk hashes on upload"
+  }
+,{
+    "name": "a4sync.rate-limit.refill-rate",
+    "type": "java.lang.Integer",
+    "description": "The number of tokens to add to the bucket per second"
+  }
+]}

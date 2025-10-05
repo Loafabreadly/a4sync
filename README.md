@@ -14,20 +14,46 @@ A4Sync is a modern, efficient mod synchronization tool for Arma 4, inspired by A
 - 🚀 HTTP range requests for resumable downloads
 - 🐳 Docker support for easy deployment
 
-## Project Structure
+## Components
 
-```
-a4sync/
-├── a4sync-client/    # JavaFX client application
-├── a4sync-common/    # Shared models and utilities
-└── a4sync-server/    # Spring Boot server application
-```
+- **Server**: Spring Boot application for hosting mod repositories
+- **Client**: JavaFX desktop application for downloading mods
+- **Tools**: Command-line interface for repository management
 
 ## Quick Start
 
+### Command Line Tools
+
+Download `a4sync-tools.jar` from [Releases](../../releases) and make it executable:
+```bash
+chmod +x a4sync-tools.jar
+```
+
+Set up an alias for convenience:
+```bash
+alias a4sync='java -jar /path/to/a4sync-tools.jar'
+```
+
+Basic commands:
+```bash
+# Initialize a new repository
+a4sync repo init /path/to/repository
+
+# Add a mod
+a4sync mod add /path/to/repository "@MyMod" --source=/path/to/mod
+
+# Create a mod set
+a4sync modset create /path/to/repository "Training Mods" @CBA_A4 @ACE
+
+# Show repository status
+a4sync repo status /path/to/repository
+```
+
+See [CLI Reference](docs/cli-reference.md) for complete documentation.
+
 ### Server Setup
 
-1. Create a configuration file `application.properties` in the same directory as the server jar:
+1. Create a configuration file `application.properties`:
 ```properties
 server.port=8080
 a4sync.root-directory=/path/to/mods
@@ -240,4 +266,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Inspired by the Arma 3 Sync project
 - Built with Spring Boot and JavaFX
-- Thanks to all contributors
