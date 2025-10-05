@@ -254,4 +254,57 @@ public class RepositoryService {
                 return data;
             });
     }
+    
+    public HealthStatus testConnection() {
+        try {
+            HttpRequest request = createRequestBuilder("/api/v1/health")
+                .GET()
+                .build();
+                
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 401) {
+                return HealthStatus.ERROR;
+            }
+            if (response.statusCode() != 200) {
+                return HealthStatus.ERROR;
+            }
+            
+            // Try to parse health response
+            try {
+                var status = objectMapper.readValue(response.body(), HealthStatus.class);
+                return "UP".equals(status.status()) ? HealthStatus.HEALTHY : HealthStatus.DEGRADED;
+            } catch (Exception e) {
+                return HealthStatus.DEGRADED;
+            }
+        } catch (Exception e) {
+            log.error("Connection test failed", e);
+            return HealthStatus.ERROR;
+        }
+    }
+    
+    public long getRepositorySize() {
+        try {
+            HttpRequest request = createRequestBuilder("/api/v1/repository/size")
+                .GET()
+                .build();
+                
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                return Long.parseLong(response.body().trim());
+            }
+            
+            // Fallback: calculate from mod sets
+            List<ModSet> modSets = getAvailableModSets().join();
+            return modSets.stream()
+                .flatMap(ms -> ms.getMods() != null ? ms.getMods().stream() : java.util.stream.Stream.empty())
+                .mapToLong(mod -> mod.getSize())
+                .sum();
+                
+        } catch (Exception e) {
+            log.error("Failed to get repository size", e);
+            return 0;
+        }
+    }
 }

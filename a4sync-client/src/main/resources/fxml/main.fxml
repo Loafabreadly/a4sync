@@ -24,6 +24,12 @@
             <SeparatorMenuItem/>
             <MenuItem text="Refresh All" onAction="#refreshAllRepositories"/>
         </Menu>
+        <Menu text="Local Content">
+            <MenuItem text="Local Mod Manager" onAction="#showLocalModManager"/>
+            <MenuItem text="Scan Directories" onAction="#scanLocalDirectories"/>
+            <SeparatorMenuItem/>
+            <MenuItem text="Cleanup Orphaned Files" onAction="#cleanupOrphanedFiles"/>
+        </Menu>
         <Menu text="Help">
             <MenuItem text="About" onAction="#showAboutDialog"/>
         </Menu>
@@ -129,6 +135,44 @@
                 <ProgressBar fx:id="updateProgress" progress="0.0" 
                             maxWidth="Infinity"/>
                 <Label fx:id="updateStatusLabel"/>
+            </VBox>
+        </Tab>
+        
+        <Tab text="Repository Status" closable="false">
+            <VBox spacing="10">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Repository Health Overview"/>
+                    <Button text="Refresh All" onAction="#refreshAllRepositories"/>
+                    <Button text="Test All Connections" onAction="#testAllRepositories"/>
+                </HBox>
+                
+                <TableView fx:id="repositoryStatusTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="repoNameColumn" text="Repository"/>
+                        <TableColumn fx:id="repoUrlColumn" text="URL"/>
+                        <TableColumn fx:id="repoStatusColumn" text="Status"/>
+                        <TableColumn fx:id="repoModCountColumn" text="Mods"/>
+                        <TableColumn fx:id="repoModSetCountColumn" text="Mod Sets"/>
+                        <TableColumn fx:id="repoSizeColumn" text="Total Size"/>
+                        <TableColumn fx:id="repoLastCheckedColumn" text="Last Checked"/>
+                    </columns>
+                </TableView>
+                
+                <HBox spacing="10">
+                    <VBox spacing="5">
+                        <Label text="Repository Details" styleClass="section-header"/>
+                        <TextArea fx:id="repositoryDetailsArea" editable="false" 
+                                prefRowCount="4" VBox.vgrow="ALWAYS"/>
+                    </VBox>
+                    
+                    <VBox spacing="5">
+                        <Label text="Quick Actions" styleClass="section-header"/>
+                        <Button text="Test Connection" onAction="#testSelectedRepositoryFromStatus"/>
+                        <Button text="Refresh Info" onAction="#refreshSelectedRepositoryFromStatus"/>
+                        <Button text="View Mod Sets" onAction="#viewSelectedRepositoryModSets"/>
+                        <Button text="Open in Browser" onAction="#openSelectedRepositoryInBrowser"/>
+                    </VBox>
+                </HBox>
             </VBox>
         </Tab>
     </TabPane>

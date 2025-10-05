@@ -85,3 +85,74 @@
     padding: 5px;
     border-radius: 3px;
 }
+
+/* Enhanced styles for new dialogs */
+.stats-header {
+    -fx-background-color: #e8f4f8;
+    -fx-padding: 10;
+    -fx-border-color: #d0d0d0;
+    -fx-border-width: 0 0 1 0;
+    background-color: #e8f4f8;
+    padding: 10px;
+    border-color: #d0d0d0;
+    border-width: 0 0 1px 0;
+}
+
+.subsection-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333333;
+}
+
+.repository-status-success {
+    -fx-text-fill: #28a745;
+    color: #28a745;
+}
+
+.repository-status-error {
+    -fx-text-fill: #dc3545;
+    color: #dc3545;
+}
+
+.repository-status-testing {
+    -fx-text-fill: #ffc107;
+    color: #ffc107;
+}
+
+.info-text {
+    -fx-font-size: 13px;
+    -fx-text-fill: #555555;
+    -fx-padding: 5 0 5 0;
+    font-size: 13px;
+    color: #555555;
+    padding: 5px 0;
+}
+
+/* Table styling improvements */
+.table-view {
+    -fx-background-color: white;
+    background-color: white;
+}
+
+.table-view .column-header {
+    -fx-background-color: #f8f9fa;
+    -fx-font-weight: bold;
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    background-color: #007bff;
+    color: white;
+}
+
+/* Progress indicators */
+.progress-bar .bar {
+    -fx-background-color: #007bff;
+    background-color: #007bff;
+}
