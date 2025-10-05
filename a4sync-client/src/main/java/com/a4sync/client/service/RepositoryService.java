@@ -86,35 +86,33 @@ public class RepositoryService {
     }
     
     public CompletableFuture<Void> testConnection() {
-        return switch (repositoryUrl) {
-            case null -> CompletableFuture.failedFuture(
+        if (repositoryUrl == null) {
+            return CompletableFuture.failedFuture(
                 new IllegalStateException("Repository URL not set"));
-            default -> {
-                HttpRequest request = createRequestBuilder("api/v1/health")
-                    .GET()
-                    .build();
-                    
-                yield client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenAccept(response -> {
-                        if (response.statusCode() == 401) {
-                            throw new AuthenticationFailedException("Invalid repository password");
-                        }
-                        if (response.statusCode() != 200) {
-                            throw new RuntimeException("Repository unavailable: " + response.statusCode());
-                        }
-                        
-                        try {
-                            record HealthStatus(String status, String message) {}
-                            var status = objectMapper.readValue(response.body(), HealthStatus.class);
-                            if (!status.status().equals("UP")) {
-                                throw new RuntimeException("Repository is DOWN: " + status.message());
-                            }
-                        } catch (Exception e) {
-                            throw new RuntimeException("Failed to parse health check response", e);
-                        }
-                    });
-            }
-        };
+        }
+        
+        HttpRequest request = createRequestBuilder("api/v1/health")
+            .GET()
+            .build();
+            
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenAccept(response -> {
+                if (response.statusCode() == 401) {
+                    throw new AuthenticationFailedException("Invalid repository password");
+                }
+                if (response.statusCode() != 200) {
+                    throw new RuntimeException("Repository unavailable: " + response.statusCode());
+                }
+                
+                try {
+                    var status = objectMapper.readValue(response.body(), HealthStatus.class);
+                    if (!status.status().equals("UP")) {
+                        throw new RuntimeException("Repository is DOWN: " + status.message());
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to parse health check response", e);
+                }
+            });
     }
     
     private String generateAuthHeader() {

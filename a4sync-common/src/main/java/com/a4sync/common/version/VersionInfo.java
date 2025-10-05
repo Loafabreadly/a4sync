@@ -82,16 +82,18 @@ public class VersionInfo {
      * @return A message if versions are different, null if they match
      */
     public String checkCompatibility(VersionInfo other) {
-        return switch(other) {
-            case null -> "Unable to determine server version";
-            case VersionInfo v when !version.equals(v.version) || !commitId.equals(v.commitId) ->
-                """
+        if (other == null) {
+            return "Unable to determine server version";
+        }
+        
+        if (!version.equals(other.version) || !commitId.equals(other.commitId)) {
+            return """
                 Version mismatch detected:
                 Client: %s (commit: %s)
                 Server: %s (commit: %s)
-                """.formatted(version, commitId, v.version, v.commitId);
-            default -> null;
-        };
+                """.formatted(version, commitId, other.version, other.commitId);
+        }
+        return null;
     }
 
     @Override
