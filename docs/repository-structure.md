@@ -1,12 +1,13 @@
 # Repository Structure
 
-This document details the A4Sync repository structure and file formats.
+This document details the A4Sync repository structure and file formats, including Phase 1 & 2 enhancements.
 
 ## Directory Layout
 
 ```
 repository/
 ├── repository.properties      # Repository configuration
+├── a4sync.json               # A4Sync configuration (Phase 2)
 ├── @ModName1/               # Mod directory (must start with @)
 │   ├── mod.json            # Mod metadata
 │   ├── addons/            # Mod PBOs
@@ -19,6 +20,56 @@ repository/
 └── modsets/               # Mod set definitions
     ├── training.json
     └── operations.json
+```
+
+## New Configuration Formats (Phase 2)
+
+### A4Sync Configuration (.a4sync / a4sync.json)
+
+The new A4Sync configuration format provides enhanced repository metadata and client settings:
+
+```json
+{
+  "repository": {
+    "name": "Unit Mod Repository",
+    "description": "Official military unit mods",
+    "version": "1.0.0",
+    "url": "https://mods.unit.com:8080",
+    "lastUpdated": "2025-10-05T12:00:00Z"
+  },
+  "connection": {
+    "protocol": "https",
+    "host": "mods.unit.com",
+    "port": 8080,
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "authRequired": false
+  },
+  "client": {
+    "download": {
+      "maxParallelDownloads": 3,
+      "chunkSize": 52428800,
+      "resumeSupported": true,
+      "verifyChecksums": true
+    },
+    "security": {
+      "allowInsecure": false,
+      "validateCertificates": true,
+      "minTlsVersion": "1.2"
+    },
+    "ui": {
+      "showProgress": true,
+      "showSpeed": true,
+      "showEta": true,
+      "autoRefresh": true
+    }
+  },
+  "compatibility": {
+    "minClientVersion": "1.0.0",
+    "supportedFormats": ["a4sync", "json"],
+    "features": ["chunked-download", "resume", "integrity-check"]
+  }
+}
 ```
 
 ## File Formats
@@ -92,14 +143,32 @@ repository.parallel-downloads=3
 }
 ```
 
-## File Chunking
+## Enhanced Download System (Phase 1)
 
-Large files are split into chunks for efficient downloads:
+### Chunked Downloads
 
-1. Default chunk size: 50MB
-2. Each chunk has a SHA-256 checksum
-3. Chunks can be downloaded in parallel
-4. Interrupted downloads can be resumed
+Large files are automatically split into chunks for reliable downloads:
+
+1. **Default chunk size**: 50MB (configurable)
+2. **SHA-256 checksums**: Each chunk independently verified
+3. **Parallel downloads**: Multiple chunks simultaneously 
+4. **Resume capability**: Interrupted downloads automatically resume
+5. **Progress tracking**: Real-time speed and ETA calculations
+6. **Integrity assurance**: Multi-layer verification system
+
+### File Validation
+
+The enhanced validation system includes:
+
+1. **Mod Structure Validation**: 
+   - Verifies Arma mod folder structure
+   - Checks for required PBO files in addons/
+   - Validates key files in keys/ directory
+
+2. **Content Integrity**:
+   - SHA-256 checksum verification for all files
+   - PBO file format validation
+   - BIKEY signature verification
 
 Example chunk calculation:
 ```python

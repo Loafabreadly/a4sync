@@ -1,6 +1,6 @@
 # Server Configuration Guide
 
-This guide explains how to set up and configure the A4Sync server for hosting mod repositories.
+This guide explains how to set up and configure the A4Sync server for hosting mod repositories with Phase 1 & 2 enhancements.
 
 ## Quick Start
 
@@ -53,9 +53,20 @@ server.port=8080
 a4sync.authentication-enabled=false
 a4sync.repository-password=yourSecretPassword
 
-# Performance tuning (see application-example.properties)
+# Rate Limiting & Security  
+a4sync.rate-limit.enabled=true
+a4sync.rate-limit.capacity=100
+a4sync.rate-limit.refill-tokens=10
+a4sync.rate-limit.refill-period=60
+
+# Performance tuning
 server.compression.enabled=true
 spring.servlet.multipart.max-file-size=5GB
+
+# Discord Notifications (Phase 2)
+a4sync.discord.enabled=false
+#a4sync.discord.webhook-url=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL
+#a4sync.discord.username=A4Sync Server
 ```
 
 ## Repository Structure
@@ -73,6 +84,26 @@ Repositories are created and managed using the a4sync-tools CLI. The resulting s
       ├── training.json
       └── operations.json
 ```
+
+## New API Endpoints (Phase 2)
+
+The server now provides enhanced endpoints for repository information and configuration:
+
+### Repository Information
+- `GET /api/v1/repository/info` - Comprehensive repository metadata
+- `GET /api/v1/a4sync.json` - A4Sync configuration format
+- `GET /api/v1/.a4sync` - Alternative config endpoint
+- `GET /api/v1/config` - Legacy config endpoint
+
+### Enhanced Mod Downloads (Phase 1)
+- `GET /api/v1/modsets/{modset}/mods/{mod}` - Direct mod download with resume support
+- HTTP Range requests supported for chunked downloads
+- Automatic integrity verification with SHA-256 checksums
+
+### Legacy Compatibility
+- `GET /api/v1/modsets` - List all modsets
+- `GET /api/v1/modsets/{name}` - Get specific modset
+- `GET /api/v1/autoconfig` - Legacy autoconfig endpoint
 
 ## Deployment Guide
 
@@ -193,9 +224,10 @@ docker compose up -d
    - Ensure ports aren't in use
 
 2. **Slow downloads**
-   - Check `max-chunk-size` setting
-   - Verify network bandwidth
-   - Adjust `parallel-downloads`
+   - Phase 1 chunked downloads optimize large file transfers
+   - Verify network bandwidth and chunk size settings
+   - Adjust parallel download limits (default: 3)
+   - Enable HTTP compression for better performance
 
 3. **Authentication issues**
    - Verify bcrypt password hashes

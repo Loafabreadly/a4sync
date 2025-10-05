@@ -1,23 +1,36 @@
 # A4Sync
 
-A modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync. It provides a complete solution for managing and distributing Arma 4 mods through an intuitive client, robust server, and powerful command-line tools.
+A robust, military-grade mod synchronization tool for Arma 4, featuring advanced chunked downloads, resume capability, and comprehensive integrity verification. Built for military units requiring reliable mod distribution.
 
-## Features
+## ✨ Features
 
-- 📁 Efficient mod synchronization with partial downloads and resume support
+### Phase 1: Core Sync Engine ✅
+- 🚀 **Chunked Downloads**: Large files split into resumable chunks (50MB default)
+- ⚡ **Resume Capability**: Automatically resume interrupted downloads
+- 📊 **Real-time Progress**: Speed monitoring and ETA calculations
+- 🔐 **Integrity Verification**: Multi-layer SHA-256 checksum validation
+- ✅ **Mod Validation**: Comprehensive Arma mod structure verification
+
+### Phase 2: Production Readiness ✅ 
+- 🔧 **Custom Configuration**: A4Sync format (replaces .a3s standard)
+- � **Auto-Discovery**: Intelligent repository configuration detection
+- 📡 **Enhanced API**: Repository info and configuration endpoints
+- 🏛️ **Military Standards**: Designed for operational reliability
+
+### Core Features
 - 🔄 Multiple mod set support with flexible organization
-- 🔒 Repository authentication with SHA-256 password hashing
-- 📊 File integrity verification with checksums
+- 🔒 Repository authentication with BCrypt password hashing
 - 🛠️ CLI tools with tab auto-completion for repository management
 - 🐳 Docker support for easy deployment
+- 📱 Modern JavaFX client interface
 
-## Quick Links
+## 📚 Documentation
 
-- [Client Guide](docs/client-guide.md) - How to use the A4Sync client
+- [Client Guide](docs/client-guide.md) - How to use the A4Sync client with robust sync engine
 - [Server Configuration](docs/server-configuration.md) - Setting up and managing the server
+- [Repository Structure](docs/repository-structure.md) - Enhanced structure with A4Sync configuration
 - [Docker Guide](docs/docker-guide.md) - Running A4Sync in Docker
 - [CLI Reference](docs/cli-reference.md) - Command line tool documentation
-- [Repository Structure](docs/repository-structure.md) - How to organize mods and mod sets
 
 ## Getting Started
 
