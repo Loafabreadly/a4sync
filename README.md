@@ -1,254 +1,55 @@
 # A4Sync
 
-A4Sync is a modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync. It provides a complete solution for managing and distributing Arma 4 mods through an intuitive client, robust server, and powerful command-line tools.
+A modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync. It provides a complete solution for managing and distributing Arma 4 mods through an intuitive client, robust server, and powerful command-line tools.
 
 ## Features
 
-- 📁 Efficient mod synchronization with partial downloads
-- 🔄 Support for multiple mod sets
-- 🔒 Optional repository authentication
-- 📊 Checksum verification for mod integrity
-- 🛠️ Command-line tools for repository management
-- 🐳 Docker support for easy deployment
-- 📈 Performance optimized for large repositories
-- 🚀 HTTP range requests for resumable downloads
+- 📁 Efficient mod synchronization with partial downloads and resume support
+- 🔄 Multiple mod set support with flexible organization
+- 🔒 Repository authentication with SHA-256 password hashing
+- 📊 File integrity verification with checksums
+- 🛠️ CLI tools for repository management
 - 🐳 Docker support for easy deployment
 
-## Components
+## Quick Links
 
-- **Server**: Spring Boot application for hosting mod repositories
-- **Client**: JavaFX desktop application for downloading mods
-- **Tools**: Command-line interface for repository management
+- [Client Guide](docs/client-guide.md) - How to use the A4Sync client
+- [Server Configuration](docs/server-configuration.md) - Setting up and managing the server
+- [Docker Guide](docs/docker-guide.md) - Running A4Sync in Docker
+- [CLI Reference](docs/cli-reference.md) - Command line tool documentation
+- [Repository Structure](docs/repository-structure.md) - How to organize mods and mod sets
 
-## Quick Start
+## Getting Started
 
-### Command Line Tools
+### Download
 
-Download `a4sync-tools.jar` from [Releases](../../releases) and make it executable:
-```bash
-chmod +x a4sync-tools.jar
-```
+Download the latest version from [Releases](../../releases):
+- `a4sync-client.jar` - Desktop client for downloading mods
+- `a4sync-server.jar` - Server for hosting mod repositories
+- `a4sync-tools.jar` - CLI tools for repository management
 
-Set up an alias for convenience:
-```bash
-alias a4sync='java -jar /path/to/a4sync-tools.jar'
-```
+### Requirements
 
-Basic commands:
-```bash
-# Initialize a new repository
-a4sync repo init /path/to/repository
+- Java 21 or later
+- For server: 
+  - 2GB RAM minimum
+  - Storage space for mods
+  - Optional: Docker for containerized deployment
 
-# Add a mod
-a4sync mod add /path/to/repository "@MyMod" --source=/path/to/mod
-
-# Create a mod set
-a4sync modset create /path/to/repository "Training Mods" @CBA_A4 @ACE
-
-# Show repository status
-a4sync repo status /path/to/repository
-```
-
-See [CLI Reference](docs/cli-reference.md) for complete documentation.
-
-### Server Setup
-
-1. Create a configuration file `application.properties`:
-```properties
-server.port=8080
-a4sync.root-directory=/path/to/mods
-a4sync.authentication-enabled=false
-```
-
-2. Run the server:
-```bash
-java -jar a4sync-server.jar
-```
-
-Note: The root directory must exist and be writable by the server process.
-
-Or using Docker:
-```bash
-docker run -v /path/to/mods:/a4sync -p 8080:8080 a4sync/server
-```
-
-### Client Usage
-
-1. Download the latest client release
-2. Launch the application
-3. Add a repository URL
-4. Select and sync mods
-
-## Building from Source
-
-Prerequisites:
-- Java 17 or later
-- Maven 3.6 or later
-
-Build the project:
-```bash
-mvn clean install
-```
-
-## Repository Authentication
-
-A4Sync supports optional repository authentication. To enable it:
-
-1. Generate a password hash:
-```bash
-java -cp a4sync-server.jar com.a4sync.server.util.PasswordUtils mypassword
-```
-
-2. Add to server configuration:
-```properties
-a4sync.authentication-enabled=true
-a4sync.repository-password=<generated-hash>
-```
-
-## Mod Organization
-
-Mods should be organized in subdirectories under the root directory:
-```
-/a4sync/
-├── CUP/
-│   ├── Weapons/
-│   │   └── weapons_core.pbo
-│   └── Units/
-│       └── units_core.pbo
-└── RHS/
-    └── Core/
-        └── rhs_main.pbo
-```
-
-Each top-level directory represents a mod set.
-
-## Setting up a Local Repository
-
-The server expects mods to be organized in a specific structure. Each mod should be in its own directory under the root path.
-You can manage mods using either the provided shell script or REST API.
-
-### Using the Shell Script
-
-The `mod-tools.sh` script provides easy mod management:
+### Quick Start Commands
 
 ```bash
-# Create/update mod.json for a single mod
-./mod-tools.sh mod "/mods/@CUP_Terrains"
+# Start the client
+java -jar a4sync-client.jar
 
-# Create a modset
-./mod-tools.sh modset "/mods" "tactical" "tac_ops" "Tactical Operations Modset"
+# Start the server
+java -jar a4sync-server.jar --spring.config.location=application.properties
 
-# Update all mod.json files in a directory
-./mod-tools.sh update-all "/mods"
+# Use CLI tools
+java -jar a4sync-tools.jar repo status /path/to/repo
 ```
 
-### Using the REST API (when running in Docker)
-
-For Docker deployments, use the admin API endpoints:
-
-```bash
-# Scan and update all mods
-curl -X POST http://localhost:8080/api/v1/admin/mods/scan
-
-# Create a new modset
-curl -X POST http://localhost:8080/api/v1/admin/modsets \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "tactical",
-    "description": "Tactical Operations Modset",
-    "gameOptions": {
-      "profileName": "tac_ops",
-      "noSplash": true
-    },
-    "mods": ["@CUP_Terrains", "@RHS_AFRF"]
-  }'
-
-# Update a specific mod's index
-curl -X PUT http://localhost:8080/api/v1/admin/mods/@CUP_Terrains/index
-```
-
-### Repository Structure
-
-The mods should be organized as follows:
-
-```
-/path/to/mods/
-├── @CUP_Terrains/          # Mod folder (must start with @)
-│   ├── addons/            # Contains PBO files
-│   │   ├── cup_terrains_core.pbo
-│   │   └── cup_terrains_maps.pbo
-│   ├── keys/             # Contains bikeys
-│   │   └── cup_terrains.bikey
-│   └── mod.json          # Mod metadata
-├── @RHS_AFRF/
-│   ├── addons/
-│   ├── keys/
-│   └── mod.json
-└── modsets/              # Contains mod set definitions
-    ├── tactical.json     # Example mod set
-    └── training.json     # Another mod set
-```
-
-### Mod Metadata (mod.json)
-```json
-{
-  "name": "@CUP_Terrains",
-  "version": "1.0.0",
-  "size": 1572864000,    # Total size in bytes
-  "hash": "sha256-..."   # SHA-256 hash of all files
-}
-```
-
-### Mod Set Definition (modsets/tactical.json)
-```json
-{
-  "name": "Tactical Operations",
-  "description": "Tactical gameplay mods",
-  "gameOptions": {
-    "profileName": "tactical",
-    "noSplash": true
-  },
-  "mods": [
-    "@CUP_Terrains",
-    "@RHS_AFRF"
-  ]
-}
-```
-
-## API Documentation
-
-The server provides a Swagger UI for exploring the API. Access it at:
-```
-http://your-server:8080/swagger-ui.html
-```
-
-### Key Endpoints
-
-- `GET /api/v1/health` - Check server health and authentication
-- `GET /api/v1/modsets` - List all mod sets
-- `GET /api/v1/modsets/{name}` - Get mod set details
-- `GET /api/v1/chunks/{id}` - Download mod chunk (supports range requests)
-- `GET /api/v1/autoconfig` - Get automatic configuration
-
-### Authentication
-
-All endpoints except `/health` require authentication if enabled in server configuration.
-Authentication uses SHA-256 hashed passwords passed in the `X-Repository-Auth` header.
-
-### Large File Handling
-
-A4Sync handles large mods efficiently through:
-1. Chunked downloads (configurable chunk size)
-2. HTTP range requests for resume support
-3. Parallel download capabilities
-4. Checksum verification per chunk
-5. Disk space verification before downloads
-
-The client automatically:
-- Splits large downloads into manageable chunks
-- Verifies available disk space
-- Supports download resumption
-- Validates file integrity
+For detailed setup and usage instructions, please refer to the documentation links above.
 
 ## Contributing
 
@@ -258,11 +59,8 @@ The client automatically:
 4. Push to the branch
 5. Create a Pull Request
 
+Please read our documentation before contributing.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by the Arma 3 Sync project
-- Built with Spring Boot and JavaFX
