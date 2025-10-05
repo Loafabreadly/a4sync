@@ -31,11 +31,53 @@ public class RepositoryService {
             .connectTimeout(Duration.ofSeconds(30))
             .build();
         this.objectMapper = new ObjectMapper();
-        this.repositoryUrl = config.getServerUrl();
+        this.objectMapper.findAndRegisterModules();
+        setRepositoryUrl(config.getServerUrl());
     }
     
     public String getRepositoryUrl() {
         return repositoryUrl;
+    }
+    
+    public void setRepositoryUrl(String url) {
+        if (url != null) {
+            // Normalize URL to ensure it ends with a single /
+            this.repositoryUrl = url.replaceAll("/+$", "") + "/";
+        } else {
+            this.repositoryUrl = null;
+        }
+    }
+    
+    private record HealthStatus(String status, String message) {}
+    
+    public CompletableFuture<Void> testConnection() {
+        if (repositoryUrl == null) {
+            return CompletableFuture.failedFuture(
+                new IllegalStateException("Repository URL not set"));
+        }
+        
+        HttpRequest request = createRequestBuilder("api/v1/health")
+            .GET()
+            .build();
+            
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenAccept(response -> {
+                if (response.statusCode() == 401) {
+                    throw new AuthenticationFailedException("Invalid repository password");
+                }
+                if (response.statusCode() != 200) {
+                    throw new RuntimeException("Repository unavailable: " + response.statusCode());
+                }
+                
+                try {
+                    var status = objectMapper.readValue(response.body(), HealthStatus.class);
+                    if (!"UP".equals(status.status())) {
+                        throw new RuntimeException("Repository is DOWN: " + status.message());
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to parse health check response", e);
+                }
+            });
     }
     
     private String generateAuthHeader() {

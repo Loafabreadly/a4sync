@@ -1,6 +1,7 @@
 package com.a4sync.client.controller;
 
 import com.a4sync.client.config.ClientConfig;
+import com.a4sync.client.exception.AuthenticationFailedException;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
 import com.a4sync.client.service.RepositoryService;
@@ -244,7 +245,7 @@ public class MainController {
 
     @FXML
     private void connectToRepository() {
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = new TextInputDialog(config.getServerUrl());
         dialog.setTitle("Connect to Repository");
         dialog.setHeaderText("Enter repository URL");
         dialog.setContentText("URL:");
@@ -252,23 +253,36 @@ public class MainController {
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(url -> {
             try {
+                statusLabel.setText("Connecting to repository...");
                 config.setServerUrl(url);
-                repositoryService.getModSets()
+                repositoryService.setRepositoryUrl(url);
+                
+                repositoryService.testConnection()
+                    .thenCompose(v -> repositoryService.getModSets())
                     .thenAccept(serverModSets -> {
                         Platform.runLater(() -> {
                             modSets.clear();
                             modSets.addAll(serverModSets);
                             repositoryUrlField.setText(url);
+                            statusLabel.setText("Connected to repository successfully");
                         });
                     })
                     .exceptionally(e -> {
-                        Platform.runLater(() -> 
-                            showError("Connection Failed", 
-                                "Failed to fetch mod sets: " + e.getMessage()));
+                        Platform.runLater(() -> {
+                            Throwable cause = e.getCause();
+                            if (cause instanceof AuthenticationFailedException) {
+                                showError("Authentication Failed", 
+                                    "Invalid repository password. Please check your settings.");
+                            } else {
+                                showError("Connection Failed", 
+                                    "Failed to connect: " + cause.getMessage());
+                            }
+                            statusLabel.setText("Failed to connect to repository");
+                        });
                         return null;
                     });
             } catch (Exception e) {
-                showError("Connection Failed", "Failed to connect: " + e.getMessage());
+                showError("Connection Failed", "Invalid repository URL: " + e.getMessage());
             }
         });
     }

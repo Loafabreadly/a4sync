@@ -95,10 +95,13 @@ Each top-level directory represents a mod set.
 
 ## API Endpoints
 
+- `GET /api/v1/health` - Check server health and authentication
 - `GET /api/v1/modsets` - List all mod sets
 - `GET /api/v1/modsets/{name}` - Get mod set details
 - `GET /api/v1/modsets/{modSetName}/mods/{modName}` - Download a mod file
 - `GET /api/v1/autoconfig` - Get automatic configuration
+
+Note: All endpoints except `/health` require authentication if enabled in server configuration.
 
 ## Contributing
 
