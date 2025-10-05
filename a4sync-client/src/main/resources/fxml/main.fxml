@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.a4sync.client.controller.MainController"
+      spacing="10">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+
+    <MenuBar>
+        <Menu text="File">
+            <MenuItem text="Settings" onAction="#showSettings"/>
+            <SeparatorMenuItem/>
+            <MenuItem text="Exit" onAction="#exit"/>
+        </Menu>
+        <Menu text="Repository">
+            <MenuItem text="Connect" onAction="#connectToRepository"/>
+            <MenuItem text="Refresh" onAction="#refreshRepository"/>
+        </Menu>
+    </MenuBar>
+
+    <TabPane VBox.vgrow="ALWAYS">
+        <Tab text="Mod Sets" closable="false">
+            <VBox spacing="10">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Mod Directories:"/>
+                    <TextField fx:id="searchDirectoryField" HBox.hgrow="ALWAYS" 
+                             promptText="Add mod directory path..."/>
+                    <Button text="Browse" onAction="#addSearchDirectory"/>
+                </HBox>
+
+                <SplitPane VBox.vgrow="ALWAYS">
+                    <VBox spacing="5">
+                        <HBox spacing="5" alignment="CENTER_LEFT">
+                            <Button text="Create Set" onAction="#createModSet"/>
+                            <Button text="Delete Set" onAction="#deleteModSet"/>
+                        </HBox>
+                        <ListView fx:id="modSetList" VBox.vgrow="ALWAYS"/>
+                    </VBox>
+
+                    <VBox spacing="5">
+                        <Label text="Mod Set Details"/>
+                        <GridPane vgap="5" hgap="5">
+                            <Label text="Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                            <TextField fx:id="modSetName" GridPane.rowIndex="0" 
+                                     GridPane.columnIndex="1" GridPane.hgrow="ALWAYS"/>
+                            
+                            <Label text="Profile:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                            <TextField fx:id="profileName" GridPane.rowIndex="1" 
+                                     GridPane.columnIndex="1"/>
+                            
+                            <CheckBox fx:id="noSplashCheck" text="No Splash" 
+                                    GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        </GridPane>
+                        
+                        <Label text="Mods"/>
+                        <ListView fx:id="modList" VBox.vgrow="ALWAYS"/>
+                        
+                        <HBox spacing="5" alignment="CENTER_RIGHT">
+                            <Button text="Update Mods" onAction="#updateMods"/>
+                            <Button text="Launch Game" onAction="#launchGame"/>
+                        </HBox>
+                    </VBox>
+                </SplitPane>
+            </VBox>
+        </Tab>
+        
+        <Tab text="Repository" closable="false">
+            <VBox spacing="10">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Repository URL:"/>
+                    <TextField fx:id="repositoryUrlField" HBox.hgrow="ALWAYS"/>
+                    <Button text="Connect" onAction="#connectToRepository"/>
+                </HBox>
+                
+                <TableView fx:id="availableModsTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="modNameColumn" text="Name"/>
+                        <TableColumn fx:id="modVersionColumn" text="Version"/>
+                        <TableColumn fx:id="modSizeColumn" text="Size"/>
+                        <TableColumn fx:id="modStatusColumn" text="Status"/>
+                    </columns>
+                </TableView>
+                
+                <ProgressBar fx:id="downloadProgress" progress="0.0" 
+                            maxWidth="Infinity"/>
+                <Label fx:id="statusLabel"/>
+            </VBox>
+        </Tab>
+    </TabPane>
+</VBox>
