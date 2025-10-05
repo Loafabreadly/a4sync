@@ -26,11 +26,17 @@ public class RepositoryAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         
+        // Only enforce authentication if it's enabled
+        if (!modProperties.isAuthenticationEnabled()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         String authHeader = request.getHeader("X-Repository-Auth");
         
         if (authHeader != null) {
-            // The client should send the SHA-256 hash of the password
-            if (BCrypt.checkpw(authHeader, modProperties.getRepositoryPassword())) {
+            // The client sends the plain text password which we verify against BCrypt hash
+            if (modProperties.verifyPassword(authHeader)) {
                 var authentication = new UsernamePasswordAuthenticationToken(
                     "repository-user",
                     null,
@@ -39,10 +45,12 @@ public class RepositoryAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid repository password");
                 return;
             }
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Repository password required");
             return;
         }
 

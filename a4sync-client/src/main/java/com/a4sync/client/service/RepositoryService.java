@@ -13,10 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -43,8 +40,15 @@ public class RepositoryService {
     
     public void setRepositoryUrl(String url) {
         if (url != null) {
-            // Normalize URL to ensure it ends with a single /
-            this.repositoryUrl = url.replaceAll("/+$", "") + "/";
+            // Normalize URL and prefer HTTPS
+            String normalizedUrl = url.replaceAll("/+$", "");
+            
+            // If no protocol specified, try HTTPS first
+            if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+                normalizedUrl = "https://" + normalizedUrl;
+            }
+            
+            this.repositoryUrl = normalizedUrl + "/";
         } else {
             this.repositoryUrl = null;
         }
@@ -91,7 +95,29 @@ public class RepositoryService {
                 new IllegalStateException("Repository URL not set"));
         }
         
-        HttpRequest request = createRequestBuilder("api/v1/health")
+        return testConnectionWithUrl(repositoryUrl)
+            .exceptionally(throwable -> {
+                // If HTTPS fails and we're using HTTPS, try HTTP fallback
+                if (repositoryUrl.startsWith("https://")) {
+                    String httpUrl = repositoryUrl.replace("https://", "http://");
+                    log.warn("HTTPS connection failed, attempting HTTP fallback to: {}", httpUrl);
+                    
+                    return testConnectionWithUrl(httpUrl)
+                        .thenAccept(result -> {
+                            // Update URL to HTTP if it works
+                            this.repositoryUrl = httpUrl;
+                            log.info("Successfully connected using HTTP fallback");
+                        })
+                        .join();
+                } else {
+                    throw new RuntimeException("Connection failed: " + throwable.getMessage(), throwable);
+                }
+            });
+    }
+    
+    private CompletableFuture<Void> testConnectionWithUrl(String url) {
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url + "api/v1/health"))
             .GET()
             .build();
             
@@ -119,13 +145,9 @@ public class RepositoryService {
         if (!config.isUseAuthentication() || config.getRepositoryPassword() == null) {
             return null;
         }
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(config.getRepositoryPassword().getBytes());
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not available", e);
-        }
+        // Send plain text password - server will verify against stored BCrypt hash
+        // Note: In production, this should only be used over HTTPS
+        return config.getRepositoryPassword();
     }
     
     private HttpRequest.Builder createRequestBuilder(String path) {

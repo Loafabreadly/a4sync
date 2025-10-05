@@ -1,55 +1,60 @@
 package com.a4sync.server.util;
 
-import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
-
+/**
+ * Utility class for password hashing and verification using BCrypt.
+ * 
+ * Usage for administrators:
+ * 1. Set a plain text password in application.properties: a4sync.repository-password=mySecretPassword
+ * 2. OR generate a hash using this utility and set: a4sync.repository-password-hash=$2a$10$...
+ * 3. Enable authentication: a4sync.authentication-enabled=true
+ */
 public class PasswordUtils {
+    
+    private static final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     
     /**
      * Generate a BCrypt hash for storing the repository password securely
      * @param plainPassword The plain text password to hash
-     * @return BCrypt hash suitable for a4sync.repository-password property
+     * @return BCrypt hash suitable for a4sync.repository-password-hash property
      */
-    public static String generateServerHash(String plainPassword) {
-        return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+    public static String generatePasswordHash(String plainPassword) {
+        return encoder.encode(plainPassword);
     }
     
     /**
-     * Generate a client-side hash for sending in the X-Repository-Auth header
-     * @param plainPassword The plain text password to hash
-     * @return SHA-256 hash of the password
-     * @throws NoSuchAlgorithmException if SHA-256 is not available
+     * Verify a plain text password against a BCrypt hash
+     * @param plainPassword The plain text password to verify
+     * @param hash The BCrypt hash to verify against
+     * @return true if the password matches the hash
      */
-    public static String generateClientHash(String plainPassword) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(plainPassword.getBytes());
-        return HexFormat.of().formatHex(hash);
+    public static boolean verifyPassword(String plainPassword, String hash) {
+        return encoder.matches(plainPassword, hash);
     }
     
     /**
      * Command line utility for generating password hashes
+     * Usage: java -cp a4sync-server.jar com.a4sync.server.util.PasswordUtils <password>
      */
     public static void main(String[] args) {
         if (args.length != 1) {
             System.out.println("Usage: java -cp a4sync-server.jar com.a4sync.server.util.PasswordUtils <password>");
+            System.out.println("Generates a BCrypt hash for the repository password.");
             System.exit(1);
         }
         
         String password = args[0];
-        try {
-            String serverHash = generateServerHash(password);
-            String clientHash = generateClientHash(password);
-            
-            System.out.println("For application.properties:");
-            System.out.println("a4sync.repository-password=" + serverHash);
-            System.out.println("\nFor X-Repository-Auth header:");
-            System.out.println(clientHash);
-        } catch (NoSuchAlgorithmException e) {
-            System.err.println("Failed to generate hash: " + e.getMessage());
-            System.exit(1);
-        }
+        String hash = generatePasswordHash(password);
+        
+        System.out.println("BCrypt hash generated for password: " + password);
+        System.out.println();
+        System.out.println("Add this to your application.properties:");
+        System.out.println("a4sync.authentication-enabled=true");
+        System.out.println("a4sync.repository-password-hash=" + hash);
+        System.out.println();
+        System.out.println("Or alternatively, use the plain text password (less secure):");
+        System.out.println("a4sync.authentication-enabled=true");
+        System.out.println("a4sync.repository-password=" + password);
     }
 }
