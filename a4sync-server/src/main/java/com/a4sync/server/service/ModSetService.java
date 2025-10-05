@@ -62,8 +62,7 @@ public class ModSetService {
                 .filter(p -> !Files.isDirectory(p))
                 .filter(p -> p.toString().endsWith(".pbo"))
                 .map(this::createModFromPath)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .flatMap(Optional::stream)
                 .collect(Collectors.toList());
             modSet.setMods(mods);
         } catch (IOException e) {
