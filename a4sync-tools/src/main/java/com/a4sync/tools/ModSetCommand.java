@@ -1,5 +1,7 @@
 package com.a4sync.tools;
 
+import com.a4sync.common.model.GameOptions;
+import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine.Command;
@@ -48,7 +50,7 @@ public class ModSetCommand {
             modSet.setName(name);
             modSet.setDescription(description != null ? description : name);
             
-            ModSet.GameOptions options = new ModSet.GameOptions();
+            GameOptions options = new GameOptions();
             options.setProfileName(profile != null ? profile : name.toLowerCase());
             options.setNoSplash(noSplash);
             modSet.setGameOptions(options);
@@ -107,7 +109,7 @@ public class ModSetCommand {
         private String name;
         
         @Parameters(index = "2..*", description = "Mods to add")
-        private List<String> mods;
+        private java.util.List<String> mods;
         
         @Override
         public Integer call() throws Exception {
@@ -120,11 +122,21 @@ public class ModSetCommand {
             ObjectMapper mapper = new ObjectMapper();
             ModSet modSet = mapper.readValue(modSetFile.toFile(), ModSet.class);
             
-            Set<String> currentMods = new HashSet<>(
-                modSet.getMods() != null ? modSet.getMods() : Collections.emptyList()
-            );
-            currentMods.addAll(mods);
-            modSet.setMods(new ArrayList<>(currentMods));
+            Set<String> currentModNames = new HashSet<>();
+            if (modSet.getMods() != null) {
+                for (com.a4sync.common.model.Mod mod : modSet.getMods()) {
+                    currentModNames.add(mod.getName());
+                }
+            }
+            currentModNames.addAll(mods);
+            
+            java.util.List<com.a4sync.common.model.Mod> updatedMods = new ArrayList<>();
+            for (String modName : currentModNames) {
+                com.a4sync.common.model.Mod mod = new com.a4sync.common.model.Mod();
+                mod.setName(modName);
+                updatedMods.add(mod);
+            }
+            modSet.setMods(updatedMods);
             
             mapper.writeValue(modSetFile.toFile(), modSet);
             System.out.println("Added mods to " + name);
@@ -144,7 +156,7 @@ public class ModSetCommand {
         private String name;
         
         @Parameters(index = "2..*", description = "Mods to remove")
-        private List<String> mods;
+        private java.util.List<String> mods;
         
         @Override
         public Integer call() throws Exception {
@@ -158,7 +170,13 @@ public class ModSetCommand {
             ModSet modSet = mapper.readValue(modSetFile.toFile(), ModSet.class);
             
             if (modSet.getMods() != null) {
-                modSet.getMods().removeAll(mods);
+                java.util.List<Mod> updatedMods = new ArrayList<>();
+                for (Mod mod : modSet.getMods()) {
+                    if (!mods.contains(mod.getName())) {
+                        updatedMods.add(mod);
+                    }
+                }
+                modSet.setMods(updatedMods);
                 mapper.writeValue(modSetFile.toFile(), modSet);
                 System.out.println("Removed mods from " + name);
             }

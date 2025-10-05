@@ -23,9 +23,10 @@
     </properties>
 
     <modules>
+        <module>a4sync-common</module>
+        <module>a4sync-tools</module>
         <module>a4sync-client</module>
         <module>a4sync-server</module>
-        <module>a4sync-common</module>
     </modules>
 
     <dependencyManagement>
