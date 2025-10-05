@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  server:
+    build: 
+      context: ./a4sync-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./mods:/mods
+      - ./config:/config
+    environment:
+      - JAVA_OPTS=-Xmx2G -Xms512M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

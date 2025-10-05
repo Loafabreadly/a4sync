@@ -1,6 +1,6 @@
 # A4Sync
 
-A4Sync is a modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync. It provides a client-server architecture for managing and distributing mods with support for partial downloads and repository authentication.
+A4Sync is a modern, efficient mod synchronization tool for Arma 4, inspired by Arma 3 Sync. It provides a complete solution for managing and distributing Arma 4 mods through an intuitive client, robust server, and powerful command-line tools.
 
 ## Features
 
@@ -8,6 +8,9 @@ A4Sync is a modern, efficient mod synchronization tool for Arma 4, inspired by A
 - 🔄 Support for multiple mod sets
 - 🔒 Optional repository authentication
 - 📊 Checksum verification for mod integrity
+- 🛠️ Command-line tools for repository management
+- 🐳 Docker support for easy deployment
+- 📈 Performance optimized for large repositories
 - 🚀 HTTP range requests for resumable downloads
 - 🐳 Docker support for easy deployment
 
