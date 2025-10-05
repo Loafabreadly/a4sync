@@ -2,9 +2,11 @@ package com.a4sync.client.controller;
 
 import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.exception.AuthenticationFailedException;
+import com.a4sync.client.model.Repository;
+import com.a4sync.client.model.RepositoryModSet;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
-import com.a4sync.client.service.RepositoryService;
+import com.a4sync.client.service.MultiRepositoryService;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
 import javafx.application.Platform;
@@ -14,12 +16,14 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.DirectoryChooser;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class MainController {
-    @FXML private ListView<ModSet> modSetList;
+    @FXML private ListView<RepositoryModSet> modSetList;
     @FXML private TextField searchDirectoryField;
-    @FXML private TextField repositoryUrlField;
+    @FXML private ComboBox<Repository> repositoryComboBox;
     @FXML private TextField modSetName;
     @FXML private TextField profileName;
     @FXML private CheckBox noSplashCheck;
@@ -35,23 +39,27 @@ public class MainController {
     private final ClientConfig config;
     private final ModManager modManager;
     private final GameLauncher gameLauncher;
-    private final RepositoryService repositoryService;
-    private final ObservableList<ModSet> modSets;
+    private final MultiRepositoryService multiRepositoryService;
+    private final ObservableList<RepositoryModSet> modSets;
     private final ObservableList<Mod> availableMods;
+    private final ObservableList<Repository> repositories;
     
     public MainController() {
         this.config = new ClientConfig();
+        this.config.migrateLegacyRepository(); // Handle backward compatibility
         this.modManager = new ModManager(config);
         this.gameLauncher = new GameLauncher(config);
-        this.repositoryService = new RepositoryService(config);
+        this.multiRepositoryService = new MultiRepositoryService(config);
         this.modSets = FXCollections.observableArrayList();
         this.availableMods = FXCollections.observableArrayList();
+        this.repositories = FXCollections.observableArrayList();
     }
 
     @FXML
     private void initialize() {
         modSetList.setItems(modSets);
         availableModsTable.setItems(availableMods);
+        repositoryComboBox.setItems(repositories);
         
         // Initialize directories field
         searchDirectoryField.setText(config.getModDirectories().isEmpty() ? 
@@ -70,10 +78,39 @@ public class MainController {
         // Add selection listeners
         modSetList.getSelectionModel().selectedItemProperty().addListener(
             (observable, oldValue, newValue) -> updateModSetDetails(newValue));
+            
+        // Setup repository display
+        repositoryComboBox.setCellFactory(listView -> new ListCell<Repository>() {
+            @Override
+            protected void updateItem(Repository repo, boolean empty) {
+                super.updateItem(repo, empty);
+                setText(empty || repo == null ? null : repo.getDisplayName());
+            }
+        });
+        repositoryComboBox.setButtonCell(new ListCell<Repository>() {
+            @Override
+            protected void updateItem(Repository repo, boolean empty) {
+                super.updateItem(repo, empty);
+                setText(empty || repo == null ? null : repo.getDisplayName());
+            }
+        });
+        
+        // Setup mod set display
+        modSetList.setCellFactory(listView -> new ListCell<RepositoryModSet>() {
+            @Override
+            protected void updateItem(RepositoryModSet item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
+            }
+        });
+        
+        // Load repositories
+        loadRepositories();
     }
     
-    private void updateModSetDetails(ModSet modSet) {
-        if (modSet != null) {
+    private void updateModSetDetails(RepositoryModSet repositoryModSet) {
+        if (repositoryModSet != null) {
+            ModSet modSet = repositoryModSet.getModSet();
             modSetName.setText(modSet.getName());
             profileName.setText(modSet.getGameOptions().getProfileName());
             noSplashCheck.setSelected(modSet.getGameOptions().isNoSplash());
@@ -94,6 +131,14 @@ public class MainController {
         }
     }
     
+    private void loadRepositories() {
+        repositories.clear();
+        repositories.addAll(config.getRepositories());
+        if (!repositories.isEmpty()) {
+            repositoryComboBox.getSelectionModel().selectFirst();
+        }
+    }
+    
     @FXML
     protected void showAboutDialog() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -102,6 +147,92 @@ public class MainController {
         alert.setContentText(com.a4sync.common.version.VersionInfo.getInstance().toString());
         alert.getButtonTypes().setAll(ButtonType.OK);
         alert.showAndWait();
+    }
+    
+    @FXML
+    private void addRepository() {
+        TextInputDialog nameDialog = new TextInputDialog();
+        nameDialog.setTitle("Add Repository");
+        nameDialog.setHeaderText("Enter repository name");
+        nameDialog.setContentText("Name:");
+        
+        Optional<String> nameResult = nameDialog.showAndWait();
+        if (nameResult.isPresent()) {
+            TextInputDialog urlDialog = new TextInputDialog();
+            urlDialog.setTitle("Add Repository");
+            urlDialog.setHeaderText("Enter repository URL");
+            urlDialog.setContentText("URL:");
+            
+            Optional<String> urlResult = urlDialog.showAndWait();
+            if (urlResult.isPresent()) {
+                Repository newRepo = new Repository(nameResult.get(), urlResult.get());
+                multiRepositoryService.addRepository(newRepo);
+                loadRepositories();
+                repositoryComboBox.getSelectionModel().select(newRepo);
+            }
+        }
+    }
+    
+    @FXML
+    private void manageRepositories() {
+        // TODO: Implement repository management dialog
+        showInfo("Repository Management", "Repository management dialog not yet implemented");
+    }
+    
+    @FXML
+    private void refreshAllRepositories() {
+        statusLabel.setText("Refreshing all repositories...");
+        multiRepositoryService.getAllModSets()
+            .thenAccept(this::updateModSetsFromRepositories)
+            .exceptionally(throwable -> {
+                Platform.runLater(() -> {
+                    showError("Refresh Failed", "Failed to refresh repositories: " + throwable.getMessage());
+                    statusLabel.setText("Failed to refresh repositories");
+                });
+                return null;
+            });
+    }
+    
+    @FXML
+    private void testSelectedRepository() {
+        Repository selected = repositoryComboBox.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            statusLabel.setText("Testing connection to " + selected.getDisplayName() + "...");
+            multiRepositoryService.testConnection(selected)
+                .thenRun(() -> Platform.runLater(() -> {
+                    statusLabel.setText("Connection successful");
+                    showInfo("Connection Test", "Successfully connected to " + selected.getDisplayName());
+                }))
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        statusLabel.setText("Connection failed");
+                        showError("Connection Failed", "Failed to connect to " + selected.getDisplayName() + ": " + throwable.getMessage());
+                    });
+                    return null;
+                });
+        } else {
+            showError("No Repository Selected", "Please select a repository to test");
+        }
+    }
+    
+    private void updateModSetsFromRepositories(Map<Repository, List<ModSet>> repositoryModSets) {
+        Platform.runLater(() -> {
+            modSets.clear();
+            repositoryModSets.forEach((repo, modSetsList) -> {
+                modSetsList.forEach(modSet -> {
+                    modSets.add(new RepositoryModSet(repo, modSet));
+                });
+            });
+            statusLabel.setText("Loaded " + modSets.size() + " mod sets from " + repositoryModSets.size() + " repositories");
+        });
+    }
+    
+    private void showInfo(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.show();
     }
 
     private String formatSize(long bytes) {
@@ -127,13 +258,13 @@ public class MainController {
 
     @FXML
     private void deleteModSet() {
-        ModSet selected = modSetList.getSelectionModel().getSelectedItem();
+        RepositoryModSet selected = modSetList.getSelectionModel().getSelectedItem();
         if (selected != null) {
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Delete Mod Set");
-            alert.setHeaderText("Delete " + selected.getName());
+            alert.setHeaderText("Delete " + selected.getModSet().getName());
             alert.setContentText("Are you sure you want to delete this mod set?");
-
+            
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
                 modSets.remove(selected);
@@ -143,35 +274,22 @@ public class MainController {
 
     @FXML
     private void refreshRepository() {
-        if (repositoryService.getRepositoryUrl() != null) {
-            statusLabel.setText("Refreshing repository...");
-            repositoryService.getModSets()
-                .thenAccept(serverModSets -> {
-                    Platform.runLater(() -> {
-                        modSets.clear();
-                        modSets.addAll(serverModSets);
-                        statusLabel.setText("Repository refreshed successfully");
-                    });
-                })
-                .exceptionally(e -> {
-                    Platform.runLater(() -> 
-                        showError("Refresh Failed", 
-                            "Failed to refresh repository: " + e.getMessage()));
-                    return null;
-                });
-        }
+        // This method is now handled by refreshAllRepositories()
+        refreshAllRepositories();
     }
 
     @FXML
     private void updateMods() {
-        ModSet selected = modSetList.getSelectionModel().getSelectedItem();
+        RepositoryModSet selected = modSetList.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showError("No Selection", "Please select a mod set to update");
             return;
         }
 
-        if (repositoryService.getRepositoryUrl() == null) {
-            showError("No Repository", "Please connect to a repository first");
+        Repository repository = selected.getRepository();
+        var repositoryService = multiRepositoryService.getRepositoryService(repository.getId());
+        if (repositoryService == null) {
+            showError("No Repository Service", "Repository service not found for " + repository.getDisplayName());
             return;
         }
 
@@ -179,12 +297,13 @@ public class MainController {
         statusLabel.setText("Updating mods...");
 
         // Count total mods for progress
-        int totalMods = selected.getMods().size();
+        ModSet modSet = selected.getModSet();
+        int totalMods = modSet.getMods().size();
         final int[] completedMods = {0};
 
-        selected.getMods().forEach(mod -> {
+        modSet.getMods().forEach(mod -> {
             if (!modManager.isModInstalled(mod)) {
-                modManager.downloadMod(mod, selected.getName(), repositoryService.getRepositoryUrl())
+                modManager.downloadMod(mod, modSet.getName(), repository.getUrl())
                     .thenRun(() -> {
                         completedMods[0]++;
                         Platform.runLater(() -> {
@@ -232,22 +351,27 @@ public class MainController {
 
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(name -> {
+            // For now, create a local mod set (no repository association)
+            // TODO: Allow user to select which repository to create the mod set in
             ModSet modSet = new ModSet();
             modSet.setName(name);
-            modSets.add(modSet);
+            
+            // Create with null repository for local mod sets
+            RepositoryModSet repositoryModSet = new RepositoryModSet(null, modSet);
+            modSets.add(repositoryModSet);
         });
     }
 
     @FXML
     private void launchGame() {
-        ModSet selected = modSetList.getSelectionModel().getSelectedItem();
+        RepositoryModSet selected = modSetList.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showError("No mod set selected", "Please select a mod set to launch the game with.");
             return;
         }
 
         try {
-            gameLauncher.launchGame(selected);
+            gameLauncher.launchGame(selected.getModSet());
         } catch (Exception e) {
             showError("Launch Failed", "Failed to launch game: " + e.getMessage());
         }
@@ -255,58 +379,8 @@ public class MainController {
 
     @FXML
     private void connectToRepository() {
-        TextInputDialog dialog = new TextInputDialog(config.getServerUrl());
-        dialog.setTitle("Connect to Repository");
-        dialog.setHeaderText("Enter repository URL");
-        dialog.setContentText("URL:");
-
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(url -> {
-            try {
-                statusLabel.setText("Connecting to repository...");
-                config.setServerUrl(url);
-                repositoryService.setRepositoryUrl(url);
-                
-                repositoryService.testConnection()
-                    .thenCompose(v -> repositoryService.checkVersionCompatibility())
-                    .thenCompose(versionWarning -> {
-                        if (versionWarning != null) {
-                            Platform.runLater(() -> {
-                                Alert alert = new Alert(Alert.AlertType.WARNING);
-                                alert.setTitle("Version Mismatch");
-                                alert.setHeaderText("Different versions detected");
-                                alert.setContentText(versionWarning);
-                                alert.show();
-                            });
-                        }
-                        return repositoryService.getModSets();
-                    })
-                    .thenAccept(serverModSets -> {
-                        Platform.runLater(() -> {
-                            modSets.clear();
-                            modSets.addAll(serverModSets);
-                            repositoryUrlField.setText(url);
-                            statusLabel.setText("Connected to repository successfully");
-                        });
-                    })
-                    .exceptionally(e -> {
-                        Platform.runLater(() -> {
-                            Throwable cause = e.getCause();
-                            if (cause instanceof AuthenticationFailedException) {
-                                showError("Authentication Failed", 
-                                    "Invalid repository password. Please check your settings.");
-                            } else {
-                                showError("Connection Failed", 
-                                    "Failed to connect: " + cause.getMessage());
-                            }
-                            statusLabel.setText("Failed to connect to repository");
-                        });
-                        return null;
-                    });
-            } catch (Exception e) {
-                showError("Connection Failed", "Invalid repository URL: " + e.getMessage());
-            }
-        });
+        // This method is now handled by addRepository()
+        addRepository();
     }
     
     private void showError(String title, String content) {

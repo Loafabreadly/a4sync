@@ -19,8 +19,10 @@
             <MenuItem text="Exit" onAction="#exit"/>
         </Menu>
         <Menu text="Repository">
-            <MenuItem text="Connect" onAction="#connectToRepository"/>
-            <MenuItem text="Refresh" onAction="#refreshRepository"/>
+            <MenuItem text="Add Repository" onAction="#addRepository"/>
+            <MenuItem text="Manage Repositories" onAction="#manageRepositories"/>
+            <SeparatorMenuItem/>
+            <MenuItem text="Refresh All" onAction="#refreshAllRepositories"/>
         </Menu>
         <Menu text="Help">
             <MenuItem text="About" onAction="#showAboutDialog"/>
@@ -30,6 +32,12 @@
     <TabPane VBox.vgrow="ALWAYS">
         <Tab text="Mod Sets" closable="false">
             <VBox spacing="10">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Repository:"/>
+                    <ComboBox fx:id="repositoryComboBox" promptText="Select repository..."/>
+                    <Button text="Test Connection" onAction="#testSelectedRepository"/>
+                </HBox>
+                
                 <HBox spacing="10" alignment="CENTER_LEFT">
                     <Label text="Mod Directories:"/>
                     <TextField fx:id="searchDirectoryField" HBox.hgrow="ALWAYS" 
