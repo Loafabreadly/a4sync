@@ -2,47 +2,126 @@
 
 This guide explains how to set up and configure the A4Sync server for hosting mod repositories.
 
-## Configuration File
+## Quick Start
 
-The server uses a `application.properties` file for configuration. Here's a detailed explanation of each setting:
+1. **Setup Repository** (use a4sync-tools CLI):
+   ```bash
+   # Initialize repository
+   java -jar a4sync-tools.jar repo init /a4sync
+   
+   # Add mods
+   java -jar a4sync-tools.jar mod add /a4sync @MyMod --source=/path/to/mod
+   
+   # Create mod sets
+   java -jar a4sync-tools.jar modset create "Training Mods"
+   ```
 
+2. **Configure Server** (`application.properties`):
+   ```properties
+   # Repository root (must match CLI init path)
+   a4sync.root-directory=/a4sync
+   
+   # Server port
+   server.port=8080
+   
+   # Authentication (optional)
+   a4sync.authentication-enabled=false
+   #a4sync.repository-password=yourPassword
+   ```
+
+3. **Start Server**:
+   ```bash
+   java -jar a4sync-server.jar
+   ```
+
+## Server Configuration
+
+The server requires minimal configuration. Repository management is handled by the CLI tools.
+
+### Required Settings
 ```properties
-# Server Settings
+# Repository root directory (initialized with CLI)
+a4sync.root-directory=/a4sync
+
+# Server port
 server.port=8080
-server.compression.enabled=true
-server.compression.mime-types=application/json,application/octet-stream
+```
 
-# Repository Settings
-repository.name=My Arma 4 Repository
-repository.description=Official repository for our unit's mods
-repository.path=/mods
-repository.max-chunk-size=52428800  # 50MB chunks
-repository.parallel-downloads=3
-
-# Security Settings (Optional)
+### Optional Settings
+```properties
+# Authentication
 a4sync.authentication-enabled=false
-a4sync.repository-password=<bcrypt-hash>  # Generated with PasswordUtils
+a4sync.repository-password=yourSecretPassword
+
+# Performance tuning (see application-example.properties)
+server.compression.enabled=true
+spring.servlet.multipart.max-file-size=5GB
 ```
 
-## Directory Structure
+## Repository Structure
 
-The server expects the following directory structure:
+Repositories are created and managed using the a4sync-tools CLI. The resulting structure is:
 ```
-/mods/
-  ├── @Mod1/
-  │   ├── mod.json
-  │   ├── addons/
-  │   └── keys/
+/a4sync/
+  ├── @Mod1/                 # Mod directories (created by CLI)
+  │   ├── mod.cpp
+  │   ├── addons/*.pbo
+  │   └── keys/*.bikey
   ├── @Mod2/
   │   └── ...
-  └── modsets/
+  └── modsets/               # Mod set definitions (created by CLI)
       ├── training.json
       └── operations.json
 ```
 
-## Running in Production
+## Deployment Guide
 
-### Memory Configuration
+### Phase 1: Repository Setup (CLI Tools)
+
+Use a4sync-tools to initialize and populate your repository:
+
+```bash
+# 1. Download tools
+wget https://github.com/your-org/a4sync/releases/latest/download/a4sync-tools.jar
+
+# 2. Create configuration
+java -jar a4sync-tools.jar config init
+# Edit ~/.a4sync/config.properties to set repository.default=/a4sync
+
+# 3. Initialize repository
+java -jar a4sync-tools.jar repo init
+
+# 4. Add your mods
+java -jar a4sync-tools.jar mod add "@CBA_A4" --source=/path/to/cba
+java -jar a4sync-tools.jar mod add "@ACE" --source=/path/to/ace
+
+# 5. Create mod sets
+java -jar a4sync-tools.jar modset create "Basic Mods"
+java -jar a4sync-tools.jar modset add "Basic Mods" @CBA_A4 @ACE
+
+# 6. Verify setup
+java -jar a4sync-tools.jar repo status
+```
+
+### Phase 2: Server Configuration & Deployment
+
+Configure and start the server to serve your repository:
+
+```bash
+# 1. Create server config
+cat > application.properties << EOF
+a4sync.root-directory=/a4sync
+server.port=8080
+a4sync.authentication-enabled=false
+EOF
+
+# 2. Start server
+java -jar a4sync-server.jar
+```
+
+### Phase 3: Production Considerations
+
+#### Memory Configuration
 
 Adjust JVM memory settings based on your repository size:
 ```bash

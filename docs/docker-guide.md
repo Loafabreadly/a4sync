@@ -57,12 +57,38 @@ This guide explains how to use Docker to run the A4Sync server.
          retries: 3
    ```
 
-4. Download example configuration:
+4. Create server configuration:
    ```bash
-   wget -O config/application.properties https://raw.githubusercontent.com/Loafabreadly/a4sync/master/a4sync-server/src/main/resources/application-example.properties
+   cat > config/application.properties << EOF
+   # Repository root (will be mounted as volume)
+   a4sync.root-directory=/data
+   
+   # Server configuration
+   server.port=8080
+   
+   # Authentication (optional)
+   a4sync.authentication-enabled=false
+   #a4sync.repository-password=yourPassword
+   EOF
    ```
 
-5. Start the server:
+5. Setup repository using CLI tools:
+   ```bash
+   # Download CLI tools
+   wget https://github.com/Loafabreadly/a4sync/releases/latest/download/a4sync-tools.jar
+   
+   # Initialize repository in data directory
+   java -jar a4sync-tools.jar repo init ./data
+   
+   # Add your mods
+   java -jar a4sync-tools.jar mod add ./data "@YourMod" --source=/path/to/mod
+   
+   # Create mod sets
+   java -jar a4sync-tools.jar modset create -r ./data "Default Set"
+   java -jar a4sync-tools.jar modset add -r ./data "Default Set" @YourMod
+   ```
+
+6. Start the server:
    ```bash
    docker compose up -d
    ```
