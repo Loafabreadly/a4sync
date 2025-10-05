@@ -30,7 +30,7 @@ Download the latest version from [Releases](../../releases):
 
 ### Requirements
 
-- Java 21 or later
+- Java 25 or later
 - For server: 
   - 2GB RAM minimum
   - Storage space for mods

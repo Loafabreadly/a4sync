@@ -5,7 +5,7 @@ This guide explains how to use the A4Sync client to download and manage Arma 4 m
 ## Installation
 
 1. Download the latest client from [Releases](../../releases)
-2. Ensure you have Java 21 or later installed:
+2. Ensure you have Java 25 or later installed:
    ```bash
    java -version
    ```
