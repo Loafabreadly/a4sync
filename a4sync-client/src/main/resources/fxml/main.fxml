@@ -103,5 +103,33 @@
                 <Label fx:id="statusLabel"/>
             </VBox>
         </Tab>
+        
+        <Tab fx:id="updatesTab" text="Updates" closable="false">
+            <VBox spacing="10">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Mod Set Updates"/>
+                    <Button text="Refresh Updates" onAction="#refreshUpdates"/>
+                </HBox>
+                
+                <TableView fx:id="updatesTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="updateModSetColumn" text="Mod Set"/>
+                        <TableColumn fx:id="updateRepositoryColumn" text="Repository"/>
+                        <TableColumn fx:id="updateCurrentVersionColumn" text="Current Version"/>
+                        <TableColumn fx:id="updateNewVersionColumn" text="Available Version"/>
+                        <TableColumn fx:id="updateActionColumn" text="Action"/>
+                    </columns>
+                </TableView>
+                
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button text="Update Selected" onAction="#updateSelectedModSets"/>
+                    <Button text="Update All" onAction="#updateAllModSets"/>
+                </HBox>
+                
+                <ProgressBar fx:id="updateProgress" progress="0.0" 
+                            maxWidth="Infinity"/>
+                <Label fx:id="updateStatusLabel"/>
+            </VBox>
+        </Tab>
     </TabPane>
 </VBox>

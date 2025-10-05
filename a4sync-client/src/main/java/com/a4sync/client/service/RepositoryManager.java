@@ -189,10 +189,33 @@ public class RepositoryManager {
             UP_TO_DATE
         }
 
-        RepositoryConfig repository;
-        ModSet remoteSet;
-        ModSet localSet;
-        Status status;
+        private final RepositoryConfig repository;
+        private final ModSet remoteSet;
+        private final ModSet localSet;
+        private final Status status;
+        
+        private ModSetStatus(RepositoryConfig repository, ModSet remoteSet, ModSet localSet, Status status) {
+            this.repository = repository;
+            this.remoteSet = remoteSet;
+            this.localSet = localSet;
+            this.status = status;
+        }
+        
+        public RepositoryConfig getRepository() {
+            return repository;
+        }
+        
+        public ModSet getRemoteSet() {
+            return remoteSet;
+        }
+        
+        public ModSet getLocalSet() {
+            return localSet;
+        }
+        
+        public Status getStatus() {
+            return status;
+        }
 
         public static ModSetStatus notDownloaded(RepositoryConfig repo, ModSet remoteSet) {
             return new ModSetStatus(repo, remoteSet, null, Status.NOT_DOWNLOADED);

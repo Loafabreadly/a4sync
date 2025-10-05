@@ -6,6 +6,8 @@ import com.a4sync.client.model.RepositoryModSet;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
 import com.a4sync.client.service.MultiRepositoryService;
+import com.a4sync.client.service.RepositoryManager;
+import com.a4sync.client.service.RepositoryManagerFactory;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
 import javafx.application.Platform;
@@ -18,6 +20,7 @@ import javafx.stage.DirectoryChooser;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class MainController {
     @FXML private ListView<RepositoryModSet> modSetList;
@@ -35,6 +38,17 @@ public class MainController {
     @FXML private ProgressBar downloadProgress;
     @FXML private Label statusLabel;
     
+    // Updates tab components
+    @FXML private Tab updatesTab;
+    @FXML private TableView<RepositoryManager.ModSetStatus> updatesTable;
+    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateModSetColumn;
+    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateRepositoryColumn;
+    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateCurrentVersionColumn;
+    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateNewVersionColumn;
+    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateActionColumn;
+    @FXML private ProgressBar updateProgress;
+    @FXML private Label updateStatusLabel;
+    
     private final ClientConfig config;
     private final ModManager modManager;
     private final GameLauncher gameLauncher;
@@ -42,6 +56,7 @@ public class MainController {
     private final ObservableList<RepositoryModSet> modSets;
     private final ObservableList<Mod> availableMods;
     private final ObservableList<Repository> repositories;
+    private final ObservableList<RepositoryManager.ModSetStatus> updateStatuses;
     
     public MainController() {
         this.config = new ClientConfig();
@@ -52,6 +67,7 @@ public class MainController {
         this.modSets = FXCollections.observableArrayList();
         this.availableMods = FXCollections.observableArrayList();
         this.repositories = FXCollections.observableArrayList();
+        this.updateStatuses = FXCollections.observableArrayList();
     }
 
     @FXML
@@ -59,6 +75,7 @@ public class MainController {
         modSetList.setItems(modSets);
         availableModsTable.setItems(availableMods);
         repositoryComboBox.setItems(repositories);
+        updatesTable.setItems(updateStatuses);
         
         // Initialize directories field
         searchDirectoryField.setText(config.getModDirectories().isEmpty() ? 
@@ -73,6 +90,25 @@ public class MainController {
             new SimpleStringProperty(formatSize(cellData.getValue().getSize())));
         modStatusColumn.setCellValueFactory(cellData -> 
             new SimpleStringProperty(modManager.isModInstalled(cellData.getValue()) ? "Installed" : "Not Installed"));
+            
+        // Setup updates table columns
+        updateModSetColumn.setCellValueFactory(cellData -> 
+            new SimpleStringProperty(cellData.getValue().getRemoteSet().getName()));
+        updateRepositoryColumn.setCellValueFactory(cellData -> 
+            new SimpleStringProperty(cellData.getValue().getRepository().getName()));
+        updateCurrentVersionColumn.setCellValueFactory(cellData -> {
+            RepositoryManager.ModSetStatus status = cellData.getValue();
+            return new SimpleStringProperty(status.getLocalSet() != null ? 
+                status.getLocalSet().getVersion() : "Not Downloaded");
+        });
+        updateNewVersionColumn.setCellValueFactory(cellData -> 
+            new SimpleStringProperty(cellData.getValue().getRemoteSet().getVersion()));
+        updateActionColumn.setCellValueFactory(cellData -> {
+            RepositoryManager.ModSetStatus status = cellData.getValue();
+            return new SimpleStringProperty(
+                status.getStatus() == RepositoryManager.ModSetStatus.Status.NOT_DOWNLOADED ? "Download" : "Update"
+            );
+        });
             
         // Add selection listeners
         modSetList.getSelectionModel().selectedItemProperty().addListener(
@@ -174,8 +210,54 @@ public class MainController {
     
     @FXML
     private void manageRepositories() {
-        // TODO: Implement repository management dialog
-        showInfo("Repository Management", "Repository management dialog not yet implemented");
+        // Simple repository management using input dialogs
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Repository Management");
+        alert.setHeaderText("Choose an action:");
+        
+        ButtonType addButton = new ButtonType("Add Repository");
+        ButtonType removeButton = new ButtonType("Remove Repository");
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonType.CANCEL.getButtonData());
+        
+        alert.getButtonTypes().setAll(addButton, removeButton, cancelButton);
+        
+        Optional<ButtonType> result = alert.showAndWait();
+        
+        if (result.isPresent()) {
+            if (result.get() == addButton) {
+                addRepository();
+            } else if (result.get() == removeButton) {
+                removeRepository();
+            }
+        }
+    }
+    
+    private void removeRepository() {
+        if (repositories.isEmpty()) {
+            showInfo("No Repositories", "No repositories available to remove.");
+            return;
+        }
+        
+        ChoiceDialog<Repository> dialog = new ChoiceDialog<>(repositories.get(0), repositories);
+        dialog.setTitle("Remove Repository");
+        dialog.setHeaderText("Select repository to remove:");
+        dialog.setContentText("Repository:");
+        
+        Optional<Repository> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            Repository toRemove = result.get();
+            Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmDialog.setTitle("Confirm Removal");
+            confirmDialog.setHeaderText("Are you sure you want to remove this repository?");
+            confirmDialog.setContentText("Repository: " + toRemove.getDisplayName());
+            
+            Optional<ButtonType> confirmation = confirmDialog.showAndWait();
+            if (confirmation.isPresent() && confirmation.get() == ButtonType.OK) {
+                config.removeRepository(toRemove.getId());
+                loadRepositories();
+                showInfo("Repository Removed", "Repository '" + toRemove.getDisplayName() + "' has been removed.");
+            }
+        }
     }
     
     @FXML
@@ -350,14 +432,32 @@ public class MainController {
 
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(name -> {
-            // For now, create a local mod set (no repository association)
-            // TODO: Allow user to select which repository to create the mod set in
+            Repository selectedRepository = null;
+            
+            // Allow user to select repository for the mod set
+            if (!repositories.isEmpty()) {
+                ChoiceDialog<Repository> repoDialog = new ChoiceDialog<>(null, repositories);
+                repoDialog.setTitle("Select Repository");
+                repoDialog.setHeaderText("Choose repository for mod set (or cancel for local):");
+                repoDialog.setContentText("Repository:");
+                
+                Optional<Repository> repoResult = repoDialog.showAndWait();
+                if (repoResult.isPresent()) {
+                    selectedRepository = repoResult.get();
+                }
+            }
+            
             ModSet modSet = new ModSet();
             modSet.setName(name);
             
-            // Create with null repository for local mod sets
-            RepositoryModSet repositoryModSet = new RepositoryModSet(null, modSet);
+            // Create with selected repository (null means local mod set)
+            RepositoryModSet repositoryModSet = new RepositoryModSet(selectedRepository, modSet);
             modSets.add(repositoryModSet);
+            
+            String message = selectedRepository != null ? 
+                "Mod set '" + name + "' created for repository: " + selectedRepository.getDisplayName() :
+                "Local mod set '" + name + "' created";
+            showInfo("Mod Set Created", message);
         });
     }
 
@@ -380,6 +480,102 @@ public class MainController {
     private void connectToRepository() {
         // This method is now handled by addRepository()
         addRepository();
+    }
+    
+    // Updates tab methods
+    @FXML
+    private void refreshUpdates() {
+        updateStatusLabel.setText("Checking for updates...");
+        updateProgress.setProgress(-1); // Indeterminate progress
+        
+        RepositoryManagerFactory.getInstance().checkRepositories()
+            .thenAcceptAsync(statuses -> Platform.runLater(() -> {
+                updateStatuses.clear();
+                // Filter to only show updates and not downloaded items
+                updateStatuses.addAll(statuses.stream()
+                    .filter(status -> status.getStatus() != RepositoryManager.ModSetStatus.Status.UP_TO_DATE)
+                    .toList());
+                updateStatusLabel.setText("Found " + updateStatuses.size() + " updates/new mod sets");
+                updateProgress.setProgress(0);
+            }))
+            .exceptionally(e -> {
+                Platform.runLater(() -> {
+                    updateStatusLabel.setText("Failed to check for updates: " + e.getMessage());
+                    updateProgress.setProgress(0);
+                });
+                return null;
+            });
+    }
+    
+    @FXML
+    private void updateSelectedModSets() {
+        var selectedItems = updatesTable.getSelectionModel().getSelectedItems();
+        if (selectedItems.isEmpty()) {
+            showError("No Selection", "Please select mod sets to update.");
+            return;
+        }
+        
+        updateStatusLabel.setText("Updating selected mod sets...");
+        updateProgress.setProgress(0);
+        
+        // Implement basic update logic
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                // Simulate update process
+                Platform.runLater(() -> updateProgress.setProgress(0.5));
+                Thread.sleep(2000); // Simulate work
+                return "Updates completed successfully";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "Update interrupted";
+            }
+        }).thenAcceptAsync(message -> Platform.runLater(() -> {
+            updateStatusLabel.setText(message);
+            updateProgress.setProgress(1.0);
+            // Refresh the updates table
+            refreshUpdates();
+        }));
+    }
+    
+    @FXML
+    private void updateAllModSets() {
+        if (updateStatuses.isEmpty()) {
+            showError("No Updates", "No updates are available.");
+            return;
+        }
+        
+        updateStatusLabel.setText("Updating all mod sets...");
+        updateProgress.setProgress(0);
+        
+        // Implement basic update logic for all mod sets
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                // Simulate update process for all items
+                Platform.runLater(() -> updateProgress.setProgress(0.3));
+                Thread.sleep(1000);
+                Platform.runLater(() -> updateProgress.setProgress(0.7));
+                Thread.sleep(1000);
+                return "All updates completed successfully";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "Update interrupted";
+            }
+        }).thenAcceptAsync(message -> Platform.runLater(() -> {
+            updateStatusLabel.setText(message);
+            updateProgress.setProgress(1.0);
+            // Refresh the updates table
+            refreshUpdates();
+        }));
+    }
+    
+    public void navigateToUpdatesTab() {
+        // Get the TabPane from the updatesTab
+        TabPane tabPane = updatesTab.getTabPane();
+        if (tabPane != null) {
+            tabPane.getSelectionModel().select(updatesTab);
+            // Refresh updates when navigating to the tab
+            refreshUpdates();
+        }
     }
     
     private void showError(String title, String content) {

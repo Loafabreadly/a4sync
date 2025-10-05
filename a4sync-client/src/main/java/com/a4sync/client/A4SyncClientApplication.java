@@ -1,5 +1,6 @@
 package com.a4sync.client;
 
+import com.a4sync.client.controller.MainController;
 import com.a4sync.client.service.RepositoryManager;
 import com.a4sync.client.service.RepositoryManagerFactory;
 import javafx.application.Application;
@@ -26,10 +27,13 @@ public class A4SyncClientApplication extends Application {
         RepositoryManagerFactory.initialize(appDir);
     }
 
+    private MainController mainController;
+
     @Override
     public void start(Stage stage) throws Exception {
         FXMLLoader fxmlLoader = new FXMLLoader(A4SyncClientApplication.class.getResource("/fxml/main.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 1024, 768);
+        this.mainController = fxmlLoader.getController(); // Get controller reference
         stage.setTitle("A4Sync - Arma 4 Mod Manager");
         stage.setScene(scene);
         stage.show();
@@ -77,8 +81,11 @@ public class A4SyncClientApplication extends Application {
                         
                         Optional<ButtonType> result = alert.showAndWait();
                         if (result.isPresent() && result.get() == ButtonType.OK) {
-                            // TODO: Navigate to updates view
-                            log.info("User acknowledged updates");
+                            // Navigate to updates view
+                            if (mainController != null) {
+                                mainController.navigateToUpdatesTab();
+                            }
+                            log.info("User acknowledged updates - navigated to updates tab");
                         }
                     });
                 } else {
