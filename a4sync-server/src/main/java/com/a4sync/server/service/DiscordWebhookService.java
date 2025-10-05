@@ -24,7 +24,6 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DiscordWebhookService {
     
     private final DiscordProperties discordProperties;

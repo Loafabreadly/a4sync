@@ -9,6 +9,7 @@ public class ModIndex {
     private String version;         // Mod version
     private long totalSize;         // Total size in bytes
     private String hash;            // Overall mod hash
+    private String lastUpdated;     // When the mod was last updated (ISO format string)
     private List<ModFile> files;    // Files in the mod
     
     @Data
