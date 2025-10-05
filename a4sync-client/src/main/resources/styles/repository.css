@@ -43,3 +43,45 @@
     font-size: 12px;
     color: #666666;
 }
+
+.repository-status {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.repository-status-success {
+    -fx-text-fill: #2e8b57;
+    color: #2e8b57;
+}
+
+.repository-status-error {
+    -fx-text-fill: #dc143c;
+    color: #dc143c;
+}
+
+.repository-status-testing {
+    -fx-text-fill: #ff8c00;
+    color: #ff8c00;
+}
+
+.repository-info {
+    -fx-font-size: 11px;
+    -fx-text-fill: #888888;
+    font-size: 11px;
+    color: #888888;
+}
+
+.repository-error {
+    -fx-font-size: 11px;
+    -fx-text-fill: #dc143c;
+    -fx-background-color: #ffe4e1;
+    -fx-padding: 5;
+    -fx-border-radius: 3;
+    font-size: 11px;
+    color: #dc143c;
+    background-color: #ffe4e1;
+    padding: 5px;
+    border-radius: 3px;
+}

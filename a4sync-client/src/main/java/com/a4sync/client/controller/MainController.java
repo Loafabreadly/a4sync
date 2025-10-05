@@ -16,6 +16,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import java.util.List;
 import java.util.Map;
@@ -186,49 +187,122 @@ public class MainController {
     
     @FXML
     private void addRepository() {
-        TextInputDialog nameDialog = new TextInputDialog();
-        nameDialog.setTitle("Add Repository");
-        nameDialog.setHeaderText("Enter repository name");
-        nameDialog.setContentText("Name:");
+        Dialog<Repository> dialog = new Dialog<>();
+        dialog.setTitle("Add Repository");
+        dialog.setHeaderText("Enter repository details");
         
-        Optional<String> nameResult = nameDialog.showAndWait();
-        if (nameResult.isPresent()) {
-            TextInputDialog urlDialog = new TextInputDialog();
-            urlDialog.setTitle("Add Repository");
-            urlDialog.setHeaderText("Enter repository URL");
-            urlDialog.setContentText("URL:");
-            
-            Optional<String> urlResult = urlDialog.showAndWait();
-            if (urlResult.isPresent()) {
-                Repository newRepo = new Repository(nameResult.get(), urlResult.get());
-                multiRepositoryService.addRepository(newRepo);
-                loadRepositories();
-                repositoryComboBox.getSelectionModel().select(newRepo);
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        
+        TextField nameField = new TextField();
+        nameField.setPromptText("Repository name");
+        TextField urlField = new TextField();
+        urlField.setPromptText("https://your-repo.com");
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Optional password");
+        
+        grid.add(new Label("Name:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("URL:"), 0, 1);
+        grid.add(urlField, 1, 1);
+        grid.add(new Label("Password:"), 0, 2);
+        grid.add(passwordField, 1, 2);
+        
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        // Enable/disable OK button based on input
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setDisable(true);
+        
+        nameField.textProperty().addListener((obs, oldText, newText) -> 
+            okButton.setDisable(newText.trim().isEmpty() || urlField.getText().trim().isEmpty()));
+        urlField.textProperty().addListener((obs, oldText, newText) -> 
+            okButton.setDisable(newText.trim().isEmpty() || nameField.getText().trim().isEmpty()));
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == ButtonType.OK) {
+                return new Repository(nameField.getText().trim(), urlField.getText().trim());
             }
+            return null;
+        });
+        
+        Optional<Repository> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            Repository newRepo = result.get();
+            
+            // Show progress while testing connection
+            statusLabel.setText("Testing connection to " + newRepo.getName() + "...");
+            
+            // Test connection first
+            CompletableFuture.supplyAsync(() -> {
+                try {
+                    java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+                    java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(newRepo.getUrl() + "/api/modsets"))
+                        .timeout(java.time.Duration.ofSeconds(10))
+                        .GET()
+                        .build();
+                    
+                    java.net.http.HttpResponse<String> response = client.send(request, 
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                    return response.statusCode() == 200;
+                } catch (Exception e) {
+                    return false;
+                }
+            }).thenAccept(connectionSuccess -> Platform.runLater(() -> {
+                if (connectionSuccess) {
+                    multiRepositoryService.addRepository(newRepo);
+                    loadRepositories();
+                    repositoryComboBox.getSelectionModel().select(newRepo);
+                    
+                    statusLabel.setText("Repository '" + newRepo.getName() + "' added successfully!");
+                    
+                    Alert success = new Alert(Alert.AlertType.INFORMATION);
+                    success.setTitle("Repository Added");
+                    success.setHeaderText("Success!");
+                    success.setContentText("Repository '" + newRepo.getName() + "' has been added and is accessible.");
+                    success.showAndWait();
+                } else {
+                    statusLabel.setText("Failed to connect to repository");
+                    
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Connection Failed");
+                    confirm.setHeaderText("Could not connect to repository");
+                    confirm.setContentText("The repository is not accessible right now. Add it anyway?");
+                    
+                    Optional<ButtonType> confirmResult = confirm.showAndWait();
+                    if (confirmResult.isPresent() && confirmResult.get() == ButtonType.OK) {
+                        multiRepositoryService.addRepository(newRepo);
+                        loadRepositories();
+                        repositoryComboBox.getSelectionModel().select(newRepo);
+                        statusLabel.setText("Repository '" + newRepo.getName() + "' added (offline)");
+                    }
+                }
+            }));
         }
     }
     
     @FXML
     private void manageRepositories() {
-        // Simple repository management using input dialogs
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Repository Management");
-        alert.setHeaderText("Choose an action:");
-        
-        ButtonType addButton = new ButtonType("Add Repository");
-        ButtonType removeButton = new ButtonType("Remove Repository");
-        ButtonType cancelButton = new ButtonType("Cancel", ButtonType.CANCEL.getButtonData());
-        
-        alert.getButtonTypes().setAll(addButton, removeButton, cancelButton);
-        
-        Optional<ButtonType> result = alert.showAndWait();
-        
-        if (result.isPresent()) {
-            if (result.get() == addButton) {
-                addRepository();
-            } else if (result.get() == removeButton) {
-                removeRepository();
-            }
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/fxml/repository.fxml"));
+            javafx.scene.Parent root = loader.load();
+            
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Repository Management");
+            stage.setScene(new javafx.scene.Scene(root, 800, 600));
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.show();
+            
+            // Refresh repositories when window closes
+            stage.setOnHidden(e -> loadRepositories());
+            
+        } catch (Exception e) {
+            showError("Failed to open Repository Management", 
+                "Could not open the repository management window: " + e.getMessage());
         }
     }
     

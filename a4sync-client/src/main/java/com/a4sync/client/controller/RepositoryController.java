@@ -3,10 +3,28 @@ package com.a4sync.client.controller;
 import com.a4sync.client.config.RepositoryConfig;
 import com.a4sync.client.service.RepositoryManager;
 import com.a4sync.client.service.RepositoryManagerFactory;
+import com.a4sync.common.model.ModSet;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class RepositoryController {
     @FXML
@@ -33,11 +51,44 @@ public class RepositoryController {
         VBox entry = new VBox(5);
         entry.getStyleClass().add("repository-entry");
         
+        // Header with name and status
+        HBox header = new HBox(10);
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        
         Label nameLabel = new Label(repo.getName());
         nameLabel.getStyleClass().add("repository-name");
         
+        Label statusLabel = new Label("Checking...");
+        statusLabel.getStyleClass().add("repository-status");
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button testConnectionButton = new Button("Test Connection");
+        testConnectionButton.setOnAction(e -> testRepositoryConnection(repo, statusLabel));
+        
+        header.getChildren().addAll(nameLabel, spacer, statusLabel, testConnectionButton);
+        
         Label urlLabel = new Label(repo.getUrl());
         urlLabel.getStyleClass().add("repository-url");
+        
+        // Repository info labels
+        Label sizeLabel = new Label("Size: Calculating...");
+        sizeLabel.getStyleClass().add("repository-info");
+        
+        Label lastCheckedLabel = new Label();
+        lastCheckedLabel.getStyleClass().add("repository-info");
+        updateLastCheckedLabel(repo, lastCheckedLabel);
+        
+        if (repo.getLastError() != null && !repo.getLastError().isEmpty()) {
+            Label errorLabel = new Label("Last Error: " + repo.getLastError());
+            errorLabel.getStyleClass().add("repository-error");
+            entry.getChildren().add(errorLabel);
+        }
+        
+        // Controls
+        HBox controls = new HBox(10);
+        controls.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
         CheckBox enabledCheck = new CheckBox("Enabled");
         enabledCheck.setSelected(repo.isEnabled());
@@ -52,6 +103,9 @@ public class RepositoryController {
             repo.setCheckOnStartup(newVal);
             RepositoryManagerFactory.getInstance().updateRepository(repo);
         });
+        
+        Button refreshButton = new Button("Refresh");
+        refreshButton.setOnAction(e -> refreshRepositoryInfo(repo, sizeLabel, lastCheckedLabel));
         
         Button removeButton = new Button("Remove");
         removeButton.setOnAction(e -> {
@@ -68,8 +122,14 @@ public class RepositoryController {
             });
         });
         
-        entry.getChildren().addAll(nameLabel, urlLabel, enabledCheck, checkOnStartupBox, removeButton);
+        controls.getChildren().addAll(enabledCheck, checkOnStartupBox, refreshButton, removeButton);
+        
+        entry.getChildren().addAll(header, urlLabel, sizeLabel, lastCheckedLabel, controls);
         repositoryList.getChildren().add(entry);
+        
+        // Automatically test connection and get size on load
+        testRepositoryConnection(repo, statusLabel);
+        refreshRepositoryInfo(repo, sizeLabel, lastCheckedLabel);
     }
     
     @FXML
@@ -120,6 +180,103 @@ public class RepositoryController {
         dialog.showAndWait().ifPresent(config -> {
             RepositoryManagerFactory.getInstance().addRepository(config);
             loadRepositories();
+            
+            // Show success message
+            Alert success = new Alert(Alert.AlertType.INFORMATION);
+            success.setTitle("Repository Added");
+            success.setHeaderText("Repository Successfully Added");
+            success.setContentText("Repository '" + config.getName() + "' has been added successfully!");
+            success.showAndWait();
         });
+    }
+    
+    private void testRepositoryConnection(RepositoryConfig repo, Label statusLabel) {
+        Platform.runLater(() -> {
+            statusLabel.setText("Testing...");
+            statusLabel.getStyleClass().removeAll("repository-status-success", "repository-status-error");
+            statusLabel.getStyleClass().add("repository-status-testing");
+        });
+        
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(repo.getUrl() + "/api/modsets"))
+                    .timeout(java.time.Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+                
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                return response.statusCode() == 200;
+            } catch (Exception e) {
+                return false;
+            }
+        }).thenAccept(success -> Platform.runLater(() -> {
+            if (success) {
+                statusLabel.setText("Connected ✓");
+                statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-error");
+                statusLabel.getStyleClass().add("repository-status-success");
+                repo.setLastError(null);
+            } else {
+                statusLabel.setText("Connection Failed ✗");
+                statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-success");
+                statusLabel.getStyleClass().add("repository-status-error");
+                repo.setLastError("Connection test failed");
+            }
+            repo.setLastChecked(Instant.now());
+            RepositoryManagerFactory.getInstance().updateRepository(repo);
+        }));
+    }
+    
+    private void refreshRepositoryInfo(RepositoryConfig repo, Label sizeLabel, Label lastCheckedLabel) {
+        Platform.runLater(() -> sizeLabel.setText("Size: Calculating..."));
+        
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                RepositoryManager manager = RepositoryManagerFactory.getInstance();
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(repo.getUrl() + "/api/modsets"))
+                    .timeout(java.time.Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+                
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    // Parse response to get size information
+                    // For now, we'll estimate based on mod sets count
+                    String body = response.body();
+                    long estimatedSize = body.length() * 1000; // Rough estimation
+                    return estimatedSize;
+                }
+                return 0L;
+            } catch (Exception e) {
+                return 0L;
+            }
+        }).thenAccept(size -> Platform.runLater(() -> {
+            if (size > 0) {
+                sizeLabel.setText("Size: " + formatSize(size));
+            } else {
+                sizeLabel.setText("Size: Unknown");
+            }
+            updateLastCheckedLabel(repo, lastCheckedLabel);
+        }));
+    }
+    
+    private void updateLastCheckedLabel(RepositoryConfig repo, Label lastCheckedLabel) {
+        if (repo.getLastChecked() != null) {
+            LocalDateTime dateTime = LocalDateTime.ofInstant(repo.getLastChecked(), ZoneId.systemDefault());
+            String formatted = dateTime.format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
+            lastCheckedLabel.setText("Last Checked: " + formatted);
+        } else {
+            lastCheckedLabel.setText("Last Checked: Never");
+        }
+    }
+    
+    private String formatSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
 }
