@@ -1,7 +1,6 @@
 package com.a4sync.client.controller;
 
 import com.a4sync.client.config.ClientConfig;
-import com.a4sync.client.exception.AuthenticationFailedException;
 import com.a4sync.client.model.Repository;
 import com.a4sync.client.model.RepositoryModSet;
 import com.a4sync.client.service.GameLauncher;
