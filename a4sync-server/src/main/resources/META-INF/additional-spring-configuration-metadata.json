@@ -49,19 +49,24 @@
     "type": "java.lang.String",
     "description": "Root directory where all repository files are stored"
   },
-{
+  {
     "name": "a4sync.chunks.parallel",
     "type": "java.lang.Integer",
     "description": "The number of parallel chunk uploads allowed per stream"
-  }
-,{
+  },
+  {
     "name": "a4sync.chunks.validate-hashes",
     "type": "java.lang.Boolean",
     "description": "Whether to validate chunk hashes on upload"
-  }
-,{
+  },
+  {
     "name": "a4sync.rate-limit.refill-rate",
     "type": "java.lang.Integer",
     "description": "The number of tokens to add to the bucket per second"
+  },
+  {
+    "name": "a4sync.discord.enabled",
+    "type": "java.lang.String",
+    "description": "Enable Discord integration and provide the bot token"
   }
 ]}

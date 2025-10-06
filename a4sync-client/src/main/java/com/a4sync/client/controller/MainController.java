@@ -763,45 +763,200 @@ public class MainController {
             return;
         }
 
-        showInfo("Refresh Updates", "Refresh updates functionality will check all repositories for available mod set updates.\n\n" +
-               "This feature is implemented but requires integration with the existing RepositoryManager system.");
+        showInfo("Refreshing Updates", "Checking all repositories for mod set updates with version comparison...");
         
-        // Use the existing multi-repository service to get all mod sets
-        try {
-            CompletableFuture<Map<Repository, List<ModSet>>> allModSetsFuture = 
-                multiRepositoryService.getAllModSets();
-            
-            allModSetsFuture.thenAccept(repoModSetsMap -> {
-                Platform.runLater(() -> {
-                    updateStatuses.clear();
+        // Enhanced update checking with version comparison
+        Task<UpdateCheckResult> updateTask = new Task<UpdateCheckResult>() {
+            @Override
+            protected UpdateCheckResult call() throws Exception {
+                updateMessage("Connecting to repositories...");
+                
+                UpdateCheckResult result = new UpdateCheckResult();
+                
+                // Use the existing multi-repository service to get all mod sets
+                CompletableFuture<Map<Repository, List<ModSet>>> allModSetsFuture = 
+                    multiRepositoryService.getAllModSets();
+                
+                Map<Repository, List<ModSet>> repoModSetsMap = allModSetsFuture.get();
+                
+                updateMessage("Analyzing mod sets for updates...");
+                
+                for (Map.Entry<Repository, List<ModSet>> entry : repoModSetsMap.entrySet()) {
+                    Repository repo = entry.getKey();
+                    List<ModSet> remoteModSets = entry.getValue();
                     
-                    int totalModSets = 0;
-                    for (Map.Entry<Repository, List<ModSet>> entry : repoModSetsMap.entrySet()) {
-                        Repository repo = entry.getKey();
-                        List<ModSet> modSets = entry.getValue();
-                        
-                        if (modSets != null) {
-                            totalModSets += modSets.size();
-                            // Note: This is a simplified approach - the actual RepositoryManager.ModSetStatus 
-                            // requires more complex integration
+                    if (remoteModSets != null) {
+                        for (ModSet remoteModSet : remoteModSets) {
+                            // Check if we have this mod set locally
+                            RepositoryModSet localModSet = findLocalModSet(remoteModSet.getName());
+                            
+                            ModSetUpdateInfo updateInfo = new ModSetUpdateInfo();
+                            updateInfo.repositoryName = repo.getName();
+                            updateInfo.modSetName = remoteModSet.getName();
+                            updateInfo.remoteVersion = remoteModSet.getVersion();
+                            updateInfo.remoteSize = remoteModSet.getTotalSize();
+                            updateInfo.lastUpdated = remoteModSet.getLastUpdated();
+                            
+                            if (localModSet == null) {
+                                // Mod set not downloaded
+                                updateInfo.localVersion = "Not Downloaded";
+                                updateInfo.updateStatus = UpdateStatus.NOT_DOWNLOADED;
+                                result.notDownloaded++;
+                            } else {
+                                // Compare versions
+                                updateInfo.localVersion = localModSet.getModSet().getVersion();
+                                int versionComparison = compareVersions(
+                                    localModSet.getModSet().getVersion(), 
+                                    remoteModSet.getVersion()
+                                );
+                                
+                                if (versionComparison < 0) {
+                                    updateInfo.updateStatus = UpdateStatus.UPDATE_AVAILABLE;
+                                    result.updatesAvailable++;
+                                } else if (versionComparison > 0) {
+                                    updateInfo.updateStatus = UpdateStatus.LOCAL_NEWER;
+                                    result.localNewer++;
+                                } else {
+                                    updateInfo.updateStatus = UpdateStatus.UP_TO_DATE;
+                                    result.upToDate++;
+                                }
+                            }
+                            
+                            result.modSetUpdates.add(updateInfo);
                         }
                     }
-                    
-                    showInfo("Updates Check Complete", 
-                           "Found " + totalModSets + " mod sets available across " + 
-                           repositories.size() + " repositories.\n\n" +
-                           "Note: Full update status tracking requires complete repository integration.");
+                }
+                
+                updateMessage("Update check completed");
+                return result;
+            }
+            
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    UpdateCheckResult result = getValue();
+                    processUpdateCheckResult(result);
                 });
-            }).exceptionally(throwable -> {
+            }
+            
+            @Override
+            protected void failed() {
                 Platform.runLater(() -> {
                     showError("Updates Check Failed", "An error occurred while checking for updates: " + 
-                             throwable.getMessage());
+                             getException().getMessage());
                 });
-                return null;
-            });
+            }
+        };
+        
+        Thread updateThread = new Thread(updateTask);
+        updateThread.setDaemon(true);
+        updateThread.start();
+    }
+    
+    // Enhanced update checking classes and methods
+    private enum UpdateStatus {
+        NOT_DOWNLOADED,
+        UPDATE_AVAILABLE, 
+        UP_TO_DATE,
+        LOCAL_NEWER
+    }
+    
+    private static class ModSetUpdateInfo {
+        String repositoryName;
+        String modSetName;
+        String localVersion;
+        String remoteVersion;
+        long remoteSize;
+        LocalDateTime lastUpdated;
+        UpdateStatus updateStatus;
+        
+        public String getStatusDescription() {
+            switch (updateStatus) {
+                case NOT_DOWNLOADED: return "Available for Download";
+                case UPDATE_AVAILABLE: return "Update Available";
+                case UP_TO_DATE: return "Up to Date"; 
+                case LOCAL_NEWER: return "Local Version Newer";
+                default: return "Unknown";
+            }
+        }
+    }
+    
+    private static class UpdateCheckResult {
+        List<ModSetUpdateInfo> modSetUpdates = new ArrayList<>();
+        int notDownloaded = 0;
+        int updatesAvailable = 0;
+        int upToDate = 0;
+        int localNewer = 0;
+    }
+    
+    private RepositoryModSet findLocalModSet(String modSetName) {
+        return modSets.stream()
+            .filter(repoModSet -> repoModSet.getModSet().getName().equals(modSetName))
+            .findFirst()
+            .orElse(null);
+    }
+    
+    private int compareVersions(String version1, String version2) {
+        if (version1 == null) version1 = "0.0.0";
+        if (version2 == null) version2 = "0.0.0";
+        
+        // Handle special cases
+        if (version1.equals(version2)) return 0;
+        if (version1.equals("Unknown") || version1.isEmpty()) return -1;
+        if (version2.equals("Unknown") || version2.isEmpty()) return 1;
+        
+        // Try semantic versioning comparison
+        try {
+            String[] v1Parts = version1.split("\\.");
+            String[] v2Parts = version2.split("\\.");
             
+            int maxLength = Math.max(v1Parts.length, v2Parts.length);
+            
+            for (int i = 0; i < maxLength; i++) {
+                int v1Part = i < v1Parts.length ? parseVersionPart(v1Parts[i]) : 0;
+                int v2Part = i < v2Parts.length ? parseVersionPart(v2Parts[i]) : 0;
+                
+                if (v1Part != v2Part) {
+                    return Integer.compare(v1Part, v2Part);
+                }
+            }
+            
+            return 0;
         } catch (Exception e) {
-            showError("Updates Check Failed", "Could not check for updates: " + e.getMessage());
+            // Fall back to string comparison
+            return version1.compareTo(version2);
+        }
+    }
+    
+    private int parseVersionPart(String versionPart) {
+        // Extract numeric part, ignoring alpha suffixes
+        String numericPart = versionPart.replaceAll("[^0-9].*", "");
+        return numericPart.isEmpty() ? 0 : Integer.parseInt(numericPart);
+    }
+    
+    private void processUpdateCheckResult(UpdateCheckResult result) {
+        // Display comprehensive update summary
+        StringBuilder summary = new StringBuilder();
+        summary.append("Update Check Results:\n\n");
+        summary.append("📦 Available for Download: ").append(result.notDownloaded).append("\n");
+        summary.append("🔄 Updates Available: ").append(result.updatesAvailable).append("\n");
+        summary.append("✅ Up to Date: ").append(result.upToDate).append("\n");
+        summary.append("⬆️ Local Newer: ").append(result.localNewer).append("\n\n");
+        
+        int totalActionable = result.notDownloaded + result.updatesAvailable;
+        if (totalActionable > 0) {
+            summary.append("Total actionable items: ").append(totalActionable);
+        } else {
+            summary.append("All mod sets are up to date!");
+        }
+        
+        showInfo("Update Check Complete", summary.toString());
+        
+        // Update status label
+        if (totalActionable > 0) {
+            statusLabel.setText(totalActionable + " mod sets can be downloaded or updated");
+        } else {
+            statusLabel.setText("All mod sets are up to date");
         }
     }
 

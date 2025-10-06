@@ -18,6 +18,18 @@ import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +46,47 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class LocalModManagerDialog extends Stage {
+    
+    // Inner class for local mod set information
+    public static class LocalModSetInfo {
+        private String name;
+        private String path;
+        private int modCount;
+        private long size;
+        private LocalDateTime lastModified;
+        
+        // Getters and setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+        
+        public int getModCount() { return modCount; }
+        public void setModCount(int modCount) { this.modCount = modCount; }
+        
+        public long getSize() { return size; }
+        public void setSize(long size) { this.size = size; }
+        
+        public LocalDateTime getLastModified() { return lastModified; }
+        public void setLastModified(LocalDateTime lastModified) { this.lastModified = lastModified; }
+        
+        public String getFormattedSize() {
+            if (size == 0) return "0 B";
+            
+            String[] units = {"B", "KB", "MB", "GB"};
+            int unitIndex = 0;
+            double sizeDouble = size;
+            
+            while (sizeDouble >= 1024 && unitIndex < units.length - 1) {
+                sizeDouble /= 1024;
+                unitIndex++;
+            }
+            
+            return String.format("%.1f %s", sizeDouble, units[unitIndex]);
+        }
+    }
+
     private final ClientConfig config;
     private final ModManager modManager;
     private final LocalModRepository localModRepo;
@@ -427,14 +480,169 @@ public class LocalModManagerDialog extends Stage {
         
         // Determine status - simplified check for local files
         info.setStatus("Local Only");
-        info.setVersion("Unknown"); // TODO: Get version from metadata
+        info.setVersion(detectModVersion(modPath));
         
         return info;
     }
     
     private void scanLocalModSets() {
-        // TODO: Implement mod set scanning
-        Platform.runLater(() -> localModSets.clear());
+        Task<List<LocalModSetInfo>> scanTask = new Task<List<LocalModSetInfo>>() {
+            @Override
+            protected List<LocalModSetInfo> call() throws Exception {
+                List<LocalModSetInfo> foundModSets = new ArrayList<>();
+                
+                for (Path directory : config.getModDirectories()) {
+                    if (!Files.exists(directory)) continue;
+                    
+                    updateMessage("Scanning " + directory.getFileName() + "...");
+                    
+                    try (Stream<Path> paths = Files.walk(directory, 2)) {
+                        paths.filter(Files::isDirectory)
+                             .filter(path -> !path.equals(directory))
+                             .forEach(modSetDir -> {
+                                 LocalModSetInfo modSetInfo = scanModSetDirectory(modSetDir);
+                                 if (modSetInfo != null) {
+                                     foundModSets.add(modSetInfo);
+                                 }
+                             });
+                    } catch (IOException e) {
+                        System.err.println("Error scanning directory " + directory + ": " + e.getMessage());
+                    }
+                }
+                
+                return foundModSets;
+            }
+            
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    localModSets.clear();
+                    localModSets.addAll(getValue());
+                });
+            }
+        };
+        
+        Thread scanThread = new Thread(scanTask);
+        scanThread.setDaemon(true);
+        scanThread.start();
+    }
+    
+    private String detectModVersion(Path modPath) {
+        // Try to detect version from various sources
+        
+        // 1. Check for mod.cpp file (Arma 3 mod definition)
+        Path modCppPath = modPath.resolve("mod.cpp");
+        if (Files.exists(modCppPath)) {
+            String version = extractVersionFromModCpp(modCppPath);
+            if (version != null) return version;
+        }
+        
+        // 2. Check for config.cpp file
+        Path configCppPath = modPath.resolve("config.cpp");
+        if (Files.exists(configCppPath)) {
+            String version = extractVersionFromConfigCpp(configCppPath);
+            if (version != null) return version;
+        }
+        
+        // 3. Check for meta.cpp file
+        Path metaCppPath = modPath.resolve("meta.cpp");
+        if (Files.exists(metaCppPath)) {
+            String version = extractVersionFromMetaCpp(metaCppPath);
+            if (version != null) return version;
+        }
+        
+        // 4. Use last modified date as fallback version
+        try {
+            FileTime lastModified = Files.getLastModifiedTime(modPath);
+            LocalDateTime modTime = LocalDateTime.ofInstant(lastModified.toInstant(), ZoneId.systemDefault());
+            return modTime.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+        } catch (IOException e) {
+            return "Unknown";
+        }
+    }
+    
+    private String extractVersionFromModCpp(Path modCppPath) {
+        try {
+            List<String> lines = Files.readAllLines(modCppPath);
+            for (String line : lines) {
+                // Look for version patterns like: version = "1.0.0";
+                if (line.contains("version") && line.contains("=")) {
+                    String[] parts = line.split("=");
+                    if (parts.length >= 2) {
+                        String version = parts[1].trim()
+                            .replaceAll("[\"';]", "")
+                            .trim();
+                        if (!version.isEmpty()) {
+                            return version;
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // Ignore and try other methods
+        }
+        return null;
+    }
+    
+    private String extractVersionFromConfigCpp(Path configCppPath) {
+        // Similar to mod.cpp but may have different format
+        return extractVersionFromModCpp(configCppPath);
+    }
+    
+    private String extractVersionFromMetaCpp(Path metaCppPath) {
+        // Similar to mod.cpp but may have different format  
+        return extractVersionFromModCpp(metaCppPath);
+    }
+    
+    private LocalModSetInfo scanModSetDirectory(Path modSetDir) {
+        try {
+            // Check if this directory contains mods (has subdirectories or .pbo files)
+            boolean hasMods = false;
+            int modCount = 0;
+            
+            try (Stream<Path> contents = Files.list(modSetDir)) {
+                List<Path> items = contents.collect(Collectors.toList());
+                
+                for (Path item : items) {
+                    if (Files.isDirectory(item) || item.toString().endsWith(".pbo")) {
+                        hasMods = true;
+                        modCount++;
+                    }
+                }
+            }
+            
+            if (!hasMods) return null;
+            
+            LocalModSetInfo info = new LocalModSetInfo();
+            info.setName(modSetDir.getFileName().toString());
+            info.setPath(modSetDir.toString());
+            info.setModCount(modCount);
+            info.setLastModified(LocalDateTime.ofInstant(
+                Files.getLastModifiedTime(modSetDir).toInstant(),
+                ZoneId.systemDefault()));
+            
+            // Calculate total size
+            try {
+                long totalSize = Files.walk(modSetDir)
+                    .filter(Files::isRegularFile)
+                    .mapToLong(path -> {
+                        try {
+                            return Files.size(path);
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+                info.setSize(totalSize);
+            } catch (IOException e) {
+                info.setSize(0);
+            }
+            
+            return info;
+            
+        } catch (IOException e) {
+            return null;
+        }
     }
     
     private void updateModDetails(LocalModInfo mod) {

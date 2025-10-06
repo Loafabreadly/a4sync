@@ -112,20 +112,34 @@ public class ClientConfig {
     private static final Path CONFIG_FILE_PATH = CONFIG_DIR.resolve(CONFIG_FILE_NAME);
     
     public void saveConfig() {
+        // Save to working directory if config exists there (portable mode)
+        // Otherwise save to user home directory (standard mode)
+        
+        Path workingDirConfigPath = Paths.get(System.getProperty("user.dir"), CONFIG_FILE_NAME);
+        Path targetPath = CONFIG_FILE_PATH; // Default to user home
+        
+        if (Files.exists(workingDirConfigPath)) {
+            // Config exists in working directory, save there (portable mode)
+            targetPath = workingDirConfigPath;
+        } else {
+            // Save to user home directory (standard mode)
+            try {
+                Files.createDirectories(CONFIG_DIR);
+            } catch (IOException e) {
+                System.err.println("Failed to create config directory: " + e.getMessage());
+                throw new RuntimeException("Could not create config directory", e);
+            }
+        }
+        
         try {
-            // Ensure config directory exists
-            Files.createDirectories(CONFIG_DIR);
-            
             // Configure ObjectMapper for JSON serialization
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper = createObjectMapper();
             mapper.enable(SerializationFeature.INDENT_OUTPUT);
             
             // Write configuration to file
-            mapper.writeValue(CONFIG_FILE_PATH.toFile(), this);
+            mapper.writeValue(targetPath.toFile(), this);
             
-            System.out.println("Configuration saved to: " + CONFIG_FILE_PATH);
+            System.out.println("Configuration saved to: " + targetPath);
             
         } catch (IOException e) {
             System.err.println("Failed to save configuration: " + e.getMessage());
@@ -134,24 +148,48 @@ public class ClientConfig {
     }
     
     public static ClientConfig loadConfig() {
-        if (!Files.exists(CONFIG_FILE_PATH)) {
-            System.out.println("No existing configuration found, creating new config.");
-            return new ClientConfig();
+        // Priority order for loading configuration:
+        // 1. Working directory (portable mode)
+        // 2. User home directory (standard mode)
+        // 3. Create new default config
+        
+        Path workingDirConfigPath = Paths.get(System.getProperty("user.dir"), CONFIG_FILE_NAME);
+        
+        // First, try loading from working directory (portable mode)
+        if (Files.exists(workingDirConfigPath)) {
+            try {
+                ObjectMapper mapper = createObjectMapper();
+                ClientConfig config = mapper.readValue(workingDirConfigPath.toFile(), ClientConfig.class);
+                System.out.println("Configuration loaded from working directory: " + workingDirConfigPath);
+                return config;
+            } catch (IOException e) {
+                System.err.println("Failed to load configuration from working directory: " + e.getMessage());
+                System.err.println("Falling back to user home directory configuration...");
+            }
         }
         
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            
-            ClientConfig config = mapper.readValue(CONFIG_FILE_PATH.toFile(), ClientConfig.class);
-            System.out.println("Configuration loaded from: " + CONFIG_FILE_PATH);
-            return config;
-            
-        } catch (IOException e) {
-            System.err.println("Failed to load configuration, using defaults: " + e.getMessage());
-            return new ClientConfig();
+        // Second, try loading from user home directory (standard mode)  
+        if (Files.exists(CONFIG_FILE_PATH)) {
+            try {
+                ObjectMapper mapper = createObjectMapper();
+                ClientConfig config = mapper.readValue(CONFIG_FILE_PATH.toFile(), ClientConfig.class);
+                System.out.println("Configuration loaded from user directory: " + CONFIG_FILE_PATH);
+                return config;
+            } catch (IOException e) {
+                System.err.println("Failed to load configuration from user directory: " + e.getMessage());
+            }
         }
+        
+        // Third, create new default configuration
+        System.out.println("No existing configuration found, creating new default config.");
+        return new ClientConfig();
+    }
+    
+    private static ObjectMapper createObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
     }
     
     // Add missing methods for MultiRepositoryService compatibility
