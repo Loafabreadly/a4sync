@@ -4,11 +4,17 @@ import com.a4sync.client.model.Repository;
 import com.a4sync.common.model.GameType;
 import lombok.Data;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import com.a4sync.common.model.GameOptions;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.io.IOException;
 
 @Data
 public class ClientConfig {
@@ -100,9 +106,52 @@ public class ClientConfig {
         return defaultGameOptions;
     }
     
-    // Add missing configuration save method
+    // Configuration persistence methods
+    private static final String CONFIG_FILE_NAME = "a4sync-client-config.json";
+    private static final Path CONFIG_DIR = Paths.get(System.getProperty("user.home"), ".a4sync");
+    private static final Path CONFIG_FILE_PATH = CONFIG_DIR.resolve(CONFIG_FILE_NAME);
+    
     public void saveConfig() {
-        // TODO: Implement configuration persistence
+        try {
+            // Ensure config directory exists
+            Files.createDirectories(CONFIG_DIR);
+            
+            // Configure ObjectMapper for JSON serialization
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+            
+            // Write configuration to file
+            mapper.writeValue(CONFIG_FILE_PATH.toFile(), this);
+            
+            System.out.println("Configuration saved to: " + CONFIG_FILE_PATH);
+            
+        } catch (IOException e) {
+            System.err.println("Failed to save configuration: " + e.getMessage());
+            throw new RuntimeException("Could not save client configuration", e);
+        }
+    }
+    
+    public static ClientConfig loadConfig() {
+        if (!Files.exists(CONFIG_FILE_PATH)) {
+            System.out.println("No existing configuration found, creating new config.");
+            return new ClientConfig();
+        }
+        
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            
+            ClientConfig config = mapper.readValue(CONFIG_FILE_PATH.toFile(), ClientConfig.class);
+            System.out.println("Configuration loaded from: " + CONFIG_FILE_PATH);
+            return config;
+            
+        } catch (IOException e) {
+            System.err.println("Failed to load configuration, using defaults: " + e.getMessage());
+            return new ClientConfig();
+        }
     }
     
     // Add missing methods for MultiRepositoryService compatibility

@@ -16,12 +16,15 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.ColumnConstraints;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import com.a4sync.client.model.HealthStatus;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
@@ -81,7 +84,7 @@ public class MainController {
     private final ObservableList<RepositoryManager.ModSetStatus> updateStatuses;
     
     public MainController() {
-        this.config = new ClientConfig();
+        this.config = ClientConfig.loadConfig();
         this.config.migrateLegacyRepository(); // Handle backward compatibility
         this.modManager = new ModManager(config);
         this.gameLauncher = new GameLauncher(config);
@@ -351,14 +354,138 @@ public class MainController {
     
         @FXML
     private void refreshAllRepositories() {
-        // TODO: Implement refresh all repositories functionality
-        System.out.println("Refresh all repositories action triggered");
+        if (repositories.isEmpty()) {
+            showInfo("No Repositories", "No repositories configured to refresh.");
+            return;
+        }
+
+        // Show progress indicator
+        showInfo("Refreshing", "Testing connections for all repositories...");
+        
+        // Test all repositories in background thread to avoid blocking UI
+        Task<Void> refreshTask = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+                int total = repositories.size();
+                int current = 0;
+                
+                for (Repository repo : repositories) {
+                    current++;
+                    updateProgress(current, total);
+                    updateMessage("Testing " + repo.getName() + "...");
+                    
+                    // Test repository connection
+                    try {
+                        // Create temporary config for this specific repository
+                        ClientConfig tempConfig = new ClientConfig();
+                        tempConfig.setServerUrl(repo.getUrl());
+                        tempConfig.setRepositoryPassword(repo.getPassword());
+                        tempConfig.setUseAuthentication(repo.isUseAuthentication());
+                        
+                        RepositoryService repoService = new RepositoryService(tempConfig);
+                        
+                        // Use the async method and wait for result
+                        HealthStatus healthStatus = repoService.testConnectionAsync().get();
+                        Platform.runLater(() -> {
+                            repo.setHealthStatus(healthStatus);
+                            repo.setLastChecked(LocalDateTime.now());
+                        });
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            repo.setHealthStatus(HealthStatus.ERROR);
+                            repo.setLastChecked(LocalDateTime.now());
+                        });
+                    }
+                    
+                    // Small delay to prevent overwhelming servers
+                    Thread.sleep(100);
+                }
+                return null;
+            }
+            
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    repositoryStatusTable.refresh();
+                    showInfo("Refresh Complete", "All repository connections have been tested.");
+                });
+            }
+            
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    showError("Refresh Failed", "An error occurred while refreshing repositories: " + 
+                             getException().getMessage());
+                });
+            }
+        };
+        
+        Thread refreshThread = new Thread(refreshTask);
+        refreshThread.setDaemon(true);
+        refreshThread.start();
     }
 
     @FXML
     private void testSelectedRepository() {
-        // TODO: Implement test selected repository functionality
-        System.out.println("Test selected repository action triggered");
+        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
+        if (selectedRepo == null) {
+            showError("No Repository Selected", "Please select a repository to test.");
+            return;
+        }
+        
+        // Show progress indicator
+        showInfo("Testing Connection", "Testing connection to " + selectedRepo.getName() + "...");
+        
+        // Test connection in background thread
+        Task<HealthStatus> testTask = new Task<HealthStatus>() {
+            @Override
+            protected HealthStatus call() throws Exception {
+                // Create temporary config for this specific repository
+                ClientConfig tempConfig = new ClientConfig();
+                tempConfig.setServerUrl(selectedRepo.getUrl());
+                tempConfig.setRepositoryPassword(selectedRepo.getPassword());
+                tempConfig.setUseAuthentication(selectedRepo.isUseAuthentication());
+                
+                RepositoryService repoService = new RepositoryService(tempConfig);
+                return repoService.testConnectionAsync().get();
+            }
+            
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    HealthStatus healthStatus = getValue();
+                    selectedRepo.setHealthStatus(healthStatus);
+                    selectedRepo.setLastChecked(LocalDateTime.now());
+                    repositoryStatusTable.refresh();
+                    
+                    boolean isHealthy = healthStatus == HealthStatus.HEALTHY;
+                    String status = isHealthy ? "successful" : "failed";
+                    String title = isHealthy ? "Connection Successful" : "Connection Failed";
+                    String message = "Connection test to " + selectedRepo.getName() + " " + status + ".";
+                    
+                    if (isHealthy) {
+                        showInfo(title, message);
+                    } else {
+                        showError(title, message + " Please check the server address and credentials.");
+                    }
+                });
+            }
+            
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    selectedRepo.setHealthStatus(HealthStatus.ERROR);
+                    selectedRepo.setLastChecked(LocalDateTime.now());
+                    repositoryStatusTable.refresh();
+                    showError("Connection Error", "Failed to test connection to " + selectedRepo.getName() + 
+                             ": " + getException().getMessage());
+                });
+            }
+        };
+        
+        Thread testThread = new Thread(testTask);
+        testThread.setDaemon(true);
+        testThread.start();
     }
 
     @FXML
@@ -410,7 +537,8 @@ public class MainController {
                 selectedRepo.setHealthStatus(HealthStatus.HEALTHY);
                 selectedRepo.setLastChecked(java.time.LocalDateTime.now());
                 selectedRepo.setName(repositoryInfo.getName()); // Use server's repository name
-                selectedRepo.setModSetCount(repositoryInfo.getModSetCount());
+                int modSetCount = repositoryInfo.getModSets() != null ? repositoryInfo.getModSets().size() : 0;
+                selectedRepo.setModSetCount(modSetCount);
                 selectedRepo.setLastUpdated(repositoryInfo.getLastUpdated());
                 
                 // Clear available mods table and show modsets for selection instead
@@ -430,13 +558,13 @@ public class MainController {
 
                 repositoryStatusTable.refresh();
                 statusLabel.setText("Connected to " + selectedRepo.getName() + " - " + 
-                                  repositoryInfo.getModSetCount() + " mod sets available for download");
+                                  modSetCount + " mod sets available for download");
                 downloadProgress.setProgress(0);
                 
                 showInfo("Repository Connected", "Successfully connected to " + selectedRepo.getName() + 
                         "\n\nRepository: " + repositoryInfo.getName() +
                         "\nLast Updated: " + repositoryInfo.getLastUpdated().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
-                        "\nAvailable Mod Sets: " + repositoryInfo.getModSetCount() +
+                        "\nAvailable Mod Sets: " + modSetCount +
                         "\n\nSelect a mod set from the table to download it.");
             });
         }).exceptionally(throwable -> {
