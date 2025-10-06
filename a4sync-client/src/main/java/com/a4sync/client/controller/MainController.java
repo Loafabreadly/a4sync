@@ -22,6 +22,7 @@ import javafx.scene.layout.ColumnConstraints;
 
 import java.util.Optional;
 import com.a4sync.client.model.HealthStatus;
+import java.time.format.DateTimeFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import java.util.List;
@@ -61,7 +62,7 @@ public class MainController {
     @FXML private TableColumn<Repository, String> repoModCountColumn;
     @FXML private TableColumn<Repository, String> repoModSetCountColumn;
     @FXML private TableColumn<Repository, String> repoSizeColumn;
-    @FXML private TableColumn<Repository, String> repoLastCheckedColumn;
+    @FXML private TableColumn<Repository, String> repoLastUpdatedColumn;
     @FXML private TextArea repositoryDetailsArea;
     
     // Repository editing fields
@@ -103,15 +104,16 @@ public class MainController {
         searchDirectoryField.setText(config.getModDirectories().isEmpty() ? 
             "" : config.getModDirectories().get(0).toString());
             
-        // Setup table columns
+        // Setup table columns (used for both mods and modsets)
         modNameColumn.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().getName()));
         modVersionColumn.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().getVersion()));
         modSizeColumn.setCellValueFactory(cellData -> 
-            new SimpleStringProperty(formatSize(cellData.getValue().getSize())));
+            new SimpleStringProperty(cellData.getValue().getSize() > 0 ? formatSize(cellData.getValue().getSize()) : "Mod Set"));
         modStatusColumn.setCellValueFactory(cellData -> 
-            new SimpleStringProperty(modManager.isModInstalled(cellData.getValue()) ? "Installed" : "Not Installed"));
+            new SimpleStringProperty(cellData.getValue().getSize() > 0 ? 
+                (modManager.isModInstalled(cellData.getValue()) ? "Installed" : "Download") : "Select"));
             
         // Setup updates table columns
         updateModSetColumn.setCellValueFactory(cellData -> 
@@ -142,10 +144,10 @@ public class MainController {
                 new SimpleStringProperty(String.valueOf(cellData.getValue().getModSetCount())));
             repoSizeColumn.setCellValueFactory(cellData -> 
                 new SimpleStringProperty(formatSize(cellData.getValue().getTotalSize())));
-            repoLastCheckedColumn.setCellValueFactory(cellData -> {
+            repoLastUpdatedColumn.setCellValueFactory(cellData -> {
                 Repository repo = cellData.getValue();
-                return new SimpleStringProperty(repo.getLastChecked() != null ? 
-                    repo.getLastChecked().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Never");
+                return new SimpleStringProperty(repo.getLastUpdated() != null ? 
+                    repo.getLastUpdated().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Unknown");
             });
             
             repositoryStatusTable.getSelectionModel().selectedItemProperty().addListener(
@@ -397,44 +399,45 @@ public class MainController {
             }
             
             Platform.runLater(() -> {
-                statusLabel.setText("Loading mod sets from " + selectedRepo.getName() + "...");
+                statusLabel.setText("Loading repository info from " + selectedRepo.getName() + "...");
             });
             
-            // Load mod sets
-            return repositoryService.getModSets();
-        }).thenAccept(modSets -> {
+            // Load repository info (lightweight - just modset names and count)
+            return repositoryService.getRepositoryInfo();
+        }).thenAccept(repositoryInfo -> {
             Platform.runLater(() -> {
-                // Update repository info
+                // Update repository with info from server
                 selectedRepo.setHealthStatus(HealthStatus.HEALTHY);
                 selectedRepo.setLastChecked(java.time.LocalDateTime.now());
-                selectedRepo.setModSetCount(modSets.size());
+                selectedRepo.setName(repositoryInfo.getName()); // Use server's repository name
+                selectedRepo.setModSetCount(repositoryInfo.getModSetCount());
+                selectedRepo.setLastUpdated(repositoryInfo.getLastUpdated());
                 
-                // Calculate total mod count and size
-                int totalMods = modSets.stream()
-                    .mapToInt(ms -> ms.getMods() != null ? ms.getMods().size() : 0)
-                    .sum();
-                long totalSize = modSets.stream()
-                    .flatMap(ms -> ms.getMods() != null ? ms.getMods().stream() : java.util.stream.Stream.empty())
-                    .mapToLong(mod -> mod.getSize())
-                    .sum();
-                
-                selectedRepo.setModCount(totalMods);
-                selectedRepo.setTotalSize(totalSize);
-                
-                // Clear and populate available mods table
+                // Clear available mods table and show modsets for selection instead
                 availableMods.clear();
-                modSets.stream()
-                    .filter(ms -> ms.getMods() != null)
-                    .flatMap(ms -> ms.getMods().stream())
-                    .forEach(availableMods::add);
+                
+                // Display modset summaries (name, description, version)
+                if (repositoryInfo.getModSets() != null) {
+                    repositoryInfo.getModSets().forEach(modSet -> {
+                        // Create a pseudo-mod entry to display modset info in the table
+                        com.a4sync.common.model.Mod modSetEntry = new com.a4sync.common.model.Mod();
+                        modSetEntry.setName(modSet.getName());
+                        modSetEntry.setVersion(modSet.getVersion());
+                        modSetEntry.setSize(0L); // Size not needed for selection
+                        availableMods.add(modSetEntry);
+                    });
+                }
 
                 repositoryStatusTable.refresh();
                 statusLabel.setText("Connected to " + selectedRepo.getName() + " - " + 
-                                  totalMods + " mods in " + modSets.size() + " mod sets");
+                                  repositoryInfo.getModSetCount() + " mod sets available for download");
                 downloadProgress.setProgress(0);
                 
                 showInfo("Repository Connected", "Successfully connected to " + selectedRepo.getName() + 
-                        "\n\nFound " + modSets.size() + " mod sets with " + totalMods + " total mods");
+                        "\n\nRepository: " + repositoryInfo.getName() +
+                        "\nLast Updated: " + repositoryInfo.getLastUpdated().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
+                        "\nAvailable Mod Sets: " + repositoryInfo.getModSetCount() +
+                        "\n\nSelect a mod set from the table to download it.");
             });
         }).exceptionally(throwable -> {
             Platform.runLater(() -> {

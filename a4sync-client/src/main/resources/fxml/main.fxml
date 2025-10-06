@@ -120,7 +120,7 @@
                                 <TableColumn fx:id="repoModCountColumn" text="Mods" prefWidth="60"/>
                                 <TableColumn fx:id="repoModSetCountColumn" text="Mod Sets" prefWidth="80"/>
                                 <TableColumn fx:id="repoSizeColumn" text="Total Size" prefWidth="100"/>
-                                <TableColumn fx:id="repoLastCheckedColumn" text="Last Checked" prefWidth="120"/>
+                                <TableColumn fx:id="repoLastUpdatedColumn" text="Last Updated" prefWidth="120"/>
                             </columns>
                         </TableView>
                     </VBox>
@@ -159,14 +159,14 @@
                         
                         <!-- Available Mods from Selected Repository -->
                         <VBox spacing="5" VBox.vgrow="ALWAYS">
-                            <Label text="Available Mods" styleClass="section-header"/>
+                            <Label text="Available Mod Sets" styleClass="section-header"/>
                             
                             <TableView fx:id="availableModsTable" VBox.vgrow="ALWAYS">
                                 <columns>
-                                    <TableColumn fx:id="modNameColumn" text="Name" prefWidth="150"/>
+                                    <TableColumn fx:id="modNameColumn" text="Mod Set Name" prefWidth="150"/>
                                     <TableColumn fx:id="modVersionColumn" text="Version" prefWidth="80"/>
-                                    <TableColumn fx:id="modSizeColumn" text="Size" prefWidth="80"/>
-                                    <TableColumn fx:id="modStatusColumn" text="Status" prefWidth="80"/>
+                                    <TableColumn fx:id="modSizeColumn" text="Type" prefWidth="80"/>
+                                    <TableColumn fx:id="modStatusColumn" text="Action" prefWidth="80"/>
                                 </columns>
                             </TableView>
                             

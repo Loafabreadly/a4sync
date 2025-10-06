@@ -12,6 +12,7 @@ public class RepositoryInfo {
     private String url;
     private LocalDateTime lastUpdated;
     private List<ModSet> modSets;
+    private int modSetCount;
     private RepositoryConfig config;
     
     @Data

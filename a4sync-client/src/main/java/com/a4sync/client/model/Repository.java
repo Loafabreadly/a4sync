@@ -25,6 +25,7 @@ public class Repository {
     // Status and monitoring fields
     private HealthStatus healthStatus = HealthStatus.UNKNOWN;
     private LocalDateTime lastChecked;
+    private LocalDateTime lastUpdated; // Server's last update time
     private String lastError;
     private long totalSize;
     private int modCount;

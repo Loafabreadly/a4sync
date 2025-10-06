@@ -90,21 +90,23 @@ public class ModSetService {
     public RepositoryInfo generateRepositoryInfo() {
         RepositoryInfo repoInfo = new RepositoryInfo();
         repoInfo.setName("A4Sync Repository");
-        repoInfo.setDescription("Auto-generated repository configuration");
-        repoInfo.setVersion("1.0");
         repoInfo.setLastUpdated(LocalDateTime.now());
         
-        // Get all available modsets
-        repoInfo.setModSets(getAllModSets());
+        // Get modset names and count only (not full details)
+        List<ModSet> allModSets = getAllModSets();
+        List<ModSet> modSetSummaries = allModSets.stream()
+            .map(modSet -> {
+                ModSet summary = new ModSet();
+                summary.setName(modSet.getName());
+                summary.setDescription(modSet.getDescription());
+                summary.setVersion(modSet.getVersion());
+                // Don't include mods list - just the basic info for selection
+                return summary;
+            })
+            .collect(Collectors.toList());
         
-        // Set repository configuration
-        RepositoryInfo.RepositoryConfig config = new RepositoryInfo.RepositoryConfig();
-        config.setMaxChunkSize(52428800L); // 50MB chunks
-        config.setParallelDownloads(3);
-        config.setAuthenticationRequired(false); // TODO: Read from server config
-        config.setCompressionEnabled(true);
-        config.setSupportedClientVersion("1.0");
-        repoInfo.setConfig(config);
+        repoInfo.setModSets(modSetSummaries);
+        repoInfo.setModSetCount(allModSets.size());
         
         return repoInfo;
     }

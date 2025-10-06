@@ -96,6 +96,37 @@ public class RepositoryService {
         
         return CompletableFuture.supplyAsync(() -> testConnectionHealth());
     }
+
+    public CompletableFuture<com.a4sync.common.model.RepositoryInfo> getRepositoryInfo() {
+        HttpRequest request = createRequestBuilder("api/v1/repository/info")
+            .GET()
+            .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenApply(response -> {
+                if (response.statusCode() == 429) {
+                    String retryAfter = response.headers()
+                        .firstValue("X-Rate-Limit-Retry-After")
+                        .orElse("60");
+                    log.warn("Rate limit hit, retry after {} seconds", retryAfter);
+                    throw new RateLimitExceededException(Long.parseLong(retryAfter));
+                }
+                if (response.statusCode() == 401) {
+                    throw new AuthenticationFailedException("Invalid repository password");
+                }
+                if (response.statusCode() != 200) {
+                    throw new RuntimeException("Unexpected response: " + response.statusCode());
+                }
+                return response.body();
+            })
+            .thenApply(body -> {
+                try {
+                    return objectMapper.readValue(body, com.a4sync.common.model.RepositoryInfo.class);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to parse repository info", e);
+                }
+            });
+    }
     
     private CompletableFuture<Void> testConnectionWithUrl(String url) {
         HttpRequest request = HttpRequest.newBuilder()
