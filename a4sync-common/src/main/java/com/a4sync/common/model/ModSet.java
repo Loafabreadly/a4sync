@@ -3,6 +3,7 @@ package com.a4sync.common.model;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,5 +18,6 @@ public class ModSet {
     private GameOptions gameOptions = new GameOptions();
     private List<String> dlcRequired = new ArrayList<>();
     private long totalSize;
+    private LocalDateTime lastUpdated;
 }
 

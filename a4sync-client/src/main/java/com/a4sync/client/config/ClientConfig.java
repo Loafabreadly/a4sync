@@ -102,6 +102,14 @@ public class ClientConfig {
         return gamePath != null ? gamePath.toString() : null;
     }
     
+    public Path getSteamPath() {
+        return steamPath;
+    }
+    
+    public Path getGamePath() {
+        return gamePath;
+    }
+    
     public GameOptions getDefaultGameOptionsObject() {
         return defaultGameOptions;
     }

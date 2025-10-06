@@ -10,10 +10,17 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-@RequiredArgsConstructor
 public class LocalModRepository {
     private final ClientConfig config;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    
+    public LocalModRepository(ClientConfig config) {
+        this.config = config;
+    }
+    
+    public LocalModRepository() {
+        this.config = new ClientConfig();
+    }
     private static final String MOD_METADATA_FILE = "mod_metadata.json";
     private static final int CHUNK_SIZE = 1024 * 1024; // 1MB chunks
 

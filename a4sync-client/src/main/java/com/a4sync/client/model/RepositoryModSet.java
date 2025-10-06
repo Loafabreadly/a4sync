@@ -3,9 +3,11 @@ package com.a4sync.client.model;
 import com.a4sync.common.model.ModSet;
 import lombok.Data;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class RepositoryModSet {
     private Repository repository;
     private ModSet modSet;

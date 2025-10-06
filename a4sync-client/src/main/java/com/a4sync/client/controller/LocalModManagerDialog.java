@@ -1,5 +1,6 @@
 package com.a4sync.client.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.service.LocalModRepository;
 import com.a4sync.client.service.ModManager;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -70,6 +70,9 @@ public class LocalModManagerDialog extends Stage {
         
         public LocalDateTime getLastModified() { return lastModified; }
         public void setLastModified(LocalDateTime lastModified) { this.lastModified = lastModified; }
+        
+        public long getTotalSize() { return size; }
+        public void setTotalSize(long size) { this.size = size; }
         
         public String getFormattedSize() {
             if (size == 0) return "0 B";
@@ -796,31 +799,5 @@ public class LocalModManagerDialog extends Stage {
         public void setLastModified(LocalDateTime lastModified) { this.lastModified = lastModified; }
     }
     
-    public static class LocalModSetInfo {
-        private String name;
-        private String repository;
-        private String version;
-        private int modCount;
-        private long totalSize;
-        private String status;
-        
-        // Getters and setters
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getRepository() { return repository; }
-        public void setRepository(String repository) { this.repository = repository; }
-        
-        public String getVersion() { return version; }
-        public void setVersion(String version) { this.version = version; }
-        
-        public int getModCount() { return modCount; }
-        public void setModCount(int modCount) { this.modCount = modCount; }
-        
-        public long getTotalSize() { return totalSize; }
-        public void setTotalSize(long totalSize) { this.totalSize = totalSize; }
-        
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-    }
+
 }

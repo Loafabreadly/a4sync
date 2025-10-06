@@ -11,12 +11,16 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class ModSetService {
     private static final int BUFFER_SIZE = 8192;
@@ -60,6 +64,7 @@ public class ModSetService {
     private ModSet createModSetFromPath(Path path) {
         ModSet modSet = new ModSet();
         modSet.setName(path.getFileName().toString());
+        
         try {
             List<Mod> mods = Files.list(path)
                 .filter(Files::isDirectory)
@@ -68,6 +73,24 @@ public class ModSetService {
                 .flatMap(Optional::stream)
                 .collect(Collectors.toList());
             modSet.setMods(mods);
+            
+            // Calculate total size from all mods
+            long totalSize = mods.stream().mapToLong(Mod::getSize).sum();
+            modSet.setTotalSize(totalSize);
+            
+            // Set last updated time based on directory modification time
+            try {
+                BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                LocalDateTime lastModified = LocalDateTime.ofInstant(
+                    attrs.lastModifiedTime().toInstant(), 
+                    ZoneId.systemDefault()
+                );
+                modSet.setLastUpdated(lastModified);
+            } catch (IOException e) {
+                // Default to current time if we can't get file attributes
+                modSet.setLastUpdated(LocalDateTime.now());
+            }
+            
         } catch (IOException e) {
             throw new RuntimeException("Failed to read mods from " + path, e);
         }
@@ -92,7 +115,7 @@ public class ModSetService {
         repoInfo.setName("A4Sync Repository");
         repoInfo.setLastUpdated(LocalDateTime.now());
         
-        // Get modset names and count only (not full details)
+        // Get modset names and count with size information
         List<ModSet> allModSets = getAllModSets();
         List<ModSet> modSetSummaries = allModSets.stream()
             .map(modSet -> {
@@ -100,7 +123,17 @@ public class ModSetService {
                 summary.setName(modSet.getName());
                 summary.setDescription(modSet.getDescription());
                 summary.setVersion(modSet.getVersion());
-                // Don't include mods list - just the basic info for selection
+                summary.setLastUpdated(modSet.getLastUpdated());
+                
+                // Calculate modset size from its mods
+                if (modSet.getMods() != null) {
+                    long totalSize = modSet.getMods().stream()
+                        .mapToLong(mod -> mod.getSize())
+                        .sum();
+                    summary.setTotalSize(totalSize);
+                }
+                
+                // Don't include full mods list - just the basic info for selection
                 return summary;
             })
             .collect(Collectors.toList());
@@ -183,5 +216,23 @@ public class ModSetService {
         }
     }
 
+    public long calculateTotalRepositorySize() {
+        try {
+            return Files.walk(rootPath)
+                .filter(p -> !Files.isDirectory(p))
+                .mapToLong(path -> {
+                    try {
+                        return Files.size(path);
+                    } catch (IOException e) {
+                        log.warn("Could not get size of file: {}", path, e);
+                        return 0;
+                    }
+                })
+                .sum();
+        } catch (IOException e) {
+            log.error("Failed to calculate repository size", e);
+            return 0;
+        }
+    }
 
 }

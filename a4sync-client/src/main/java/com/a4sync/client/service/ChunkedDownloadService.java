@@ -31,6 +31,10 @@ public class ChunkedDownloadService {
         private volatile boolean cancelled = false;
         private volatile String status = "Starting";
         
+        public DownloadProgress(long totalBytes) {
+            this.totalBytes = totalBytes;
+        }
+        
         public double getProgressPercentage() {
             if (totalBytes <= 0) return 0;
             return (double) downloadedBytes.get() / totalBytes * 100.0;
@@ -46,6 +50,18 @@ public class ChunkedDownloadService {
             long speed = getDownloadSpeed();
             if (speed <= 0) return -1;
             return (totalBytes - downloadedBytes.get()) / speed;
+        }
+        
+        public boolean isCancelled() {
+            return cancelled;
+        }
+        
+        public void setStatus(String status) {
+            this.status = status;
+        }
+        
+        public AtomicLong getDownloadedBytes() {
+            return downloadedBytes;
         }
     }
     
