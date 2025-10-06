@@ -7,7 +7,8 @@
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.a4sync.client.controller.MainController"
-      spacing="10">
+      spacing="10" 
+      stylesheets="@../styles/main.css">
     <padding>
         <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
@@ -91,92 +92,118 @@
             </VBox>
         </Tab>
         
-        <Tab text="Repository" closable="false">
-            <VBox spacing="10">
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Repository URL:"/>
-                    <TextField fx:id="repositoryUrlField" HBox.hgrow="ALWAYS"/>
-                    <Button text="Connect" onAction="#connectToRepository"/>
-                </HBox>
-                
-                <TableView fx:id="availableModsTable" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="modNameColumn" text="Name"/>
-                        <TableColumn fx:id="modVersionColumn" text="Version"/>
-                        <TableColumn fx:id="modSizeColumn" text="Size"/>
-                        <TableColumn fx:id="modStatusColumn" text="Status"/>
-                    </columns>
-                </TableView>
-                
-                <ProgressBar fx:id="downloadProgress" progress="0.0" 
-                            maxWidth="Infinity"/>
-                <Label fx:id="statusLabel"/>
-            </VBox>
-        </Tab>
+
         
-        <Tab fx:id="updatesTab" text="Updates" closable="false">
-            <VBox spacing="10">
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Mod Set Updates"/>
-                    <Button text="Refresh Updates" onAction="#refreshUpdates"/>
-                </HBox>
-                
-                <TableView fx:id="updatesTable" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="updateModSetColumn" text="Mod Set"/>
-                        <TableColumn fx:id="updateRepositoryColumn" text="Repository"/>
-                        <TableColumn fx:id="updateCurrentVersionColumn" text="Current Version"/>
-                        <TableColumn fx:id="updateNewVersionColumn" text="Available Version"/>
-                        <TableColumn fx:id="updateActionColumn" text="Action"/>
-                    </columns>
-                </TableView>
-                
-                <HBox spacing="10" alignment="CENTER_RIGHT">
-                    <Button text="Update Selected" onAction="#updateSelectedModSets"/>
-                    <Button text="Update All" onAction="#updateAllModSets"/>
-                </HBox>
-                
-                <ProgressBar fx:id="updateProgress" progress="0.0" 
-                            maxWidth="Infinity"/>
-                <Label fx:id="updateStatusLabel"/>
-            </VBox>
-        </Tab>
+
         
-        <Tab text="Repository Status" closable="false">
+        <Tab text="Repository Management" closable="false">
             <VBox spacing="10">
+                <!-- Repository Management Header -->
                 <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Repository Health Overview"/>
+                    <Label text="Repository Management" styleClass="section-header"/>
+                    <Button text="Add Repository" onAction="#addRepository"/>
                     <Button text="Refresh All" onAction="#refreshAllRepositories"/>
                     <Button text="Test All Connections" onAction="#testAllRepositories"/>
                 </HBox>
                 
-                <TableView fx:id="repositoryStatusTable" VBox.vgrow="ALWAYS">
-                    <columns>
-                        <TableColumn fx:id="repoNameColumn" text="Repository"/>
-                        <TableColumn fx:id="repoUrlColumn" text="URL"/>
-                        <TableColumn fx:id="repoStatusColumn" text="Status"/>
-                        <TableColumn fx:id="repoModCountColumn" text="Mods"/>
-                        <TableColumn fx:id="repoModSetCountColumn" text="Mod Sets"/>
-                        <TableColumn fx:id="repoSizeColumn" text="Total Size"/>
-                        <TableColumn fx:id="repoLastCheckedColumn" text="Last Checked"/>
-                    </columns>
-                </TableView>
-                
-                <HBox spacing="10">
-                    <VBox spacing="5">
-                        <Label text="Repository Details" styleClass="section-header"/>
-                        <TextArea fx:id="repositoryDetailsArea" editable="false" 
-                                prefRowCount="4" VBox.vgrow="ALWAYS"/>
+                <!-- Main Split Pane: Repository List | Details + Actions -->
+                <SplitPane VBox.vgrow="ALWAYS" dividerPositions="0.6">
+                    <!-- Left Side: Repository Table -->
+                    <VBox spacing="10">
+                        <Label text="Repositories" styleClass="section-header"/>
+                        
+                        <TableView fx:id="repositoryStatusTable" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="repoNameColumn" text="Repository" prefWidth="120"/>
+                                <TableColumn fx:id="repoUrlColumn" text="URL" prefWidth="200"/>
+                                <TableColumn fx:id="repoStatusColumn" text="Status" prefWidth="80"/>
+                                <TableColumn fx:id="repoModCountColumn" text="Mods" prefWidth="60"/>
+                                <TableColumn fx:id="repoModSetCountColumn" text="Mod Sets" prefWidth="80"/>
+                                <TableColumn fx:id="repoSizeColumn" text="Total Size" prefWidth="100"/>
+                                <TableColumn fx:id="repoLastCheckedColumn" text="Last Checked" prefWidth="120"/>
+                            </columns>
+                        </TableView>
                     </VBox>
                     
-                    <VBox spacing="5">
-                        <Label text="Quick Actions" styleClass="section-header"/>
-                        <Button text="Test Connection" onAction="#testSelectedRepositoryFromStatus"/>
-                        <Button text="Refresh Info" onAction="#refreshSelectedRepositoryFromStatus"/>
-                        <Button text="View Mod Sets" onAction="#viewSelectedRepositoryModSets"/>
-                        <Button text="Open in Browser" onAction="#openSelectedRepositoryInBrowser"/>
+                    <!-- Right Side: Repository Details and Actions -->
+                    <VBox spacing="10">
+                        <!-- Repository Connection Editor -->
+                        <VBox spacing="10" styleClass="connection-editor">
+                            <Label text="Repository Connection" styleClass="section-header"/>
+                            
+                            <GridPane hgap="10" vgap="5">
+                                <columnConstraints>
+                                    <ColumnConstraints minWidth="80" prefWidth="80"/>
+                                    <ColumnConstraints hgrow="ALWAYS"/>
+                                </columnConstraints>
+                                
+                                <Label text="Name:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                                <TextField fx:id="repoEditNameField" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                
+                                <Label text="URL:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                                <TextField fx:id="repoEditUrlField" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                
+                                <Label text="Password:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                                <PasswordField fx:id="repoEditPasswordField" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                                
+                                <CheckBox fx:id="repoEditEnabledCheck" text="Enabled" 
+                                         GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                            </GridPane>
+                            
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <Button text="Save Changes" onAction="#saveRepositoryChanges"/>
+                                <Button text="Test Connection" onAction="#testSelectedRepositoryFromStatus"/>
+                                <Button text="Delete Repository" onAction="#deleteSelectedRepository"/>
+                            </HBox>
+                        </VBox>
+                        
+                        <!-- Available Mods from Selected Repository -->
+                        <VBox spacing="5" VBox.vgrow="ALWAYS">
+                            <Label text="Available Mods" styleClass="section-header"/>
+                            
+                            <TableView fx:id="availableModsTable" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="modNameColumn" text="Name" prefWidth="150"/>
+                                    <TableColumn fx:id="modVersionColumn" text="Version" prefWidth="80"/>
+                                    <TableColumn fx:id="modSizeColumn" text="Size" prefWidth="80"/>
+                                    <TableColumn fx:id="modStatusColumn" text="Status" prefWidth="80"/>
+                                </columns>
+                            </TableView>
+                            
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <Button text="Connect to Repository" onAction="#connectToRepository"/>
+                                <Button text="View Mod Sets" onAction="#viewSelectedRepositoryModSets"/>
+                                <Button text="Open in Browser" onAction="#openSelectedRepositoryInBrowser"/>
+                            </HBox>
+                        </VBox>
+                        
+                        <!-- Update Management Section -->
+                        <VBox spacing="5">
+                            <Label text="Update Management" styleClass="section-header"/>
+                            
+                            <TableView fx:id="updatesTable" maxHeight="150">
+                                <columns>
+                                    <TableColumn fx:id="updateModSetColumn" text="Mod Set" prefWidth="120"/>
+                                    <TableColumn fx:id="updateRepositoryColumn" text="Repository" prefWidth="100"/>
+                                    <TableColumn fx:id="updateCurrentVersionColumn" text="Current" prefWidth="80"/>
+                                    <TableColumn fx:id="updateNewVersionColumn" text="Available" prefWidth="80"/>
+                                </columns>
+                            </TableView>
+                            
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <Button text="Refresh Updates" onAction="#refreshUpdates"/>
+                                <Button text="Update Selected" onAction="#updateSelectedModSets"/>
+                                <Button text="Update All" onAction="#updateAllModSets"/>
+                            </HBox>
+                        </VBox>
+                        
+                        <!-- Progress and Status -->
+                        <VBox spacing="5">
+                            <ProgressBar fx:id="downloadProgress" progress="0.0" maxWidth="Infinity"/>
+                            <Label fx:id="statusLabel"/>
+                        </VBox>
                     </VBox>
-                </HBox>
+                </SplitPane>
             </VBox>
         </Tab>
     </TabPane>

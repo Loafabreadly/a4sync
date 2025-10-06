@@ -18,6 +18,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.ColumnConstraints;
+
+import java.util.Optional;
+import com.a4sync.client.model.HealthStatus;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import java.util.List;
@@ -42,16 +46,12 @@ public class MainController {
     @FXML private ProgressBar downloadProgress;
     @FXML private Label statusLabel;
     
-    // Updates tab components
-    @FXML private Tab updatesTab;
+    // Updates table components (now in Repository Management tab)
     @FXML private TableView<RepositoryManager.ModSetStatus> updatesTable;
     @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateModSetColumn;
     @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateRepositoryColumn;
     @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateCurrentVersionColumn;
     @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateNewVersionColumn;
-    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateActionColumn;
-    @FXML private ProgressBar updateProgress;
-    @FXML private Label updateStatusLabel;
     
     // Repository status tab components
     @FXML private TableView<Repository> repositoryStatusTable;
@@ -63,6 +63,12 @@ public class MainController {
     @FXML private TableColumn<Repository, String> repoSizeColumn;
     @FXML private TableColumn<Repository, String> repoLastCheckedColumn;
     @FXML private TextArea repositoryDetailsArea;
+    
+    // Repository editing fields
+    @FXML private TextField repoEditNameField;
+    @FXML private TextField repoEditUrlField;
+    @FXML private PasswordField repoEditPasswordField;
+    @FXML private CheckBox repoEditEnabledCheck;
     
     private final ClientConfig config;
     private final ModManager modManager;
@@ -119,12 +125,6 @@ public class MainController {
         });
         updateNewVersionColumn.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().getRemoteSet().getVersion()));
-        updateActionColumn.setCellValueFactory(cellData -> {
-            RepositoryManager.ModSetStatus status = cellData.getValue();
-            return new SimpleStringProperty(
-                status.getStatus() == RepositoryManager.ModSetStatus.Status.NOT_DOWNLOADED ? "Download" : "Update"
-            );
-        });
         
         // Setup repository status table columns
         if (repositoryStatusTable != null) {
@@ -149,7 +149,10 @@ public class MainController {
             });
             
             repositoryStatusTable.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldRepo, newRepo) -> updateRepositoryStatusDetails(newRepo));
+                (obs, oldRepo, newRepo) -> {
+                    updateRepositoryStatusDetails(newRepo);
+                    populateRepositoryEditFields(newRepo);
+                });
         }
             
         // Add selection listeners
@@ -376,8 +379,76 @@ public class MainController {
 
     @FXML
     private void connectToRepository() {
-        // TODO: Implement connect to repository functionality
-        System.out.println("Connect to repository action triggered");
+        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
+        if (selectedRepo == null) {
+            showError("No Repository Selected", "Please select a repository to connect to.");
+            return;
+        }
+
+        // Create a repository service for this specific repository
+        RepositoryService repositoryService = new RepositoryService(config);
+        repositoryService.setRepositoryUrl(selectedRepo.getUrl());
+
+        statusLabel.setText("Connecting to " + selectedRepo.getName() + "...");
+                downloadProgress.setProgress(-1.0); // Indeterminate progress        // First test the connection
+        repositoryService.testConnectionAsync().thenCompose(healthStatus -> {
+            if (healthStatus == HealthStatus.ERROR) {
+                throw new RuntimeException("Failed to connect to repository");
+            }
+            
+            Platform.runLater(() -> {
+                statusLabel.setText("Loading mod sets from " + selectedRepo.getName() + "...");
+            });
+            
+            // Load mod sets
+            return repositoryService.getModSets();
+        }).thenAccept(modSets -> {
+            Platform.runLater(() -> {
+                // Update repository info
+                selectedRepo.setHealthStatus(HealthStatus.HEALTHY);
+                selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                selectedRepo.setModSetCount(modSets.size());
+                
+                // Calculate total mod count and size
+                int totalMods = modSets.stream()
+                    .mapToInt(ms -> ms.getMods() != null ? ms.getMods().size() : 0)
+                    .sum();
+                long totalSize = modSets.stream()
+                    .flatMap(ms -> ms.getMods() != null ? ms.getMods().stream() : java.util.stream.Stream.empty())
+                    .mapToLong(mod -> mod.getSize())
+                    .sum();
+                
+                selectedRepo.setModCount(totalMods);
+                selectedRepo.setTotalSize(totalSize);
+                
+                // Clear and populate available mods table
+                availableMods.clear();
+                modSets.stream()
+                    .filter(ms -> ms.getMods() != null)
+                    .flatMap(ms -> ms.getMods().stream())
+                    .forEach(availableMods::add);
+
+                repositoryStatusTable.refresh();
+                statusLabel.setText("Connected to " + selectedRepo.getName() + " - " + 
+                                  totalMods + " mods in " + modSets.size() + " mod sets");
+                downloadProgress.setProgress(0);
+                
+                showInfo("Repository Connected", "Successfully connected to " + selectedRepo.getName() + 
+                        "\n\nFound " + modSets.size() + " mod sets with " + totalMods + " total mods");
+            });
+        }).exceptionally(throwable -> {
+            Platform.runLater(() -> {
+                selectedRepo.setHealthStatus(HealthStatus.ERROR);
+                selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                repositoryStatusTable.refresh();
+                statusLabel.setText("Failed to connect to repository");
+                downloadProgress.setProgress(0);
+                showError("Connection Failed", "Failed to connect to " + selectedRepo.getName() + 
+                        "\n\nError: " + throwable.getMessage() + 
+                        "\n\nPlease verify the server is running and accessible.");
+            });
+            return null;
+        });
     }
 
     @FXML
@@ -440,9 +511,56 @@ public class MainController {
     
     @FXML
     private void testSelectedRepositoryFromStatus() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setContentText("Repository testing feature coming soon!");
-        info.showAndWait();
+        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
+        if (selectedRepo == null) {
+            showError("No Repository Selected", "Please select a repository to test.");
+            return;
+        }
+
+        // Create a repository service for this specific repository
+        RepositoryService repositoryService = new RepositoryService(config);
+        repositoryService.setRepositoryUrl(selectedRepo.getUrl());
+
+        // Test the connection asynchronously
+        statusLabel.setText("Testing connection to " + selectedRepo.getName() + "...");
+        
+        repositoryService.testConnectionAsync().thenAccept(healthStatus -> {
+            Platform.runLater(() -> {
+                switch (healthStatus) {
+                    case HEALTHY:
+                        statusLabel.setText("Connection to " + selectedRepo.getName() + " successful!");
+                        selectedRepo.setHealthStatus(healthStatus);
+                        selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                        repositoryStatusTable.refresh();
+                        showInfo("Connection Test", "Successfully connected to " + selectedRepo.getName());
+                        break;
+                    case DEGRADED:
+                        statusLabel.setText("Connection to " + selectedRepo.getName() + " has issues.");
+                        selectedRepo.setHealthStatus(healthStatus);
+                        selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                        repositoryStatusTable.refresh();
+                        showError("Connection Test", "Connected to " + selectedRepo.getName() + " but service is degraded.");
+                        break;
+                    case ERROR:
+                        statusLabel.setText("Failed to connect to " + selectedRepo.getName());
+                        selectedRepo.setHealthStatus(healthStatus);
+                        selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                        repositoryStatusTable.refresh();
+                        showError("Connection Test", "Failed to connect to " + selectedRepo.getName() + 
+                                "\n\nPlease verify:\n- The server is running\n- The URL is correct\n- Your network connection");
+                        break;
+                }
+            });
+        }).exceptionally(throwable -> {
+            Platform.runLater(() -> {
+                statusLabel.setText("Connection test failed");
+                selectedRepo.setHealthStatus(HealthStatus.ERROR);
+                selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                repositoryStatusTable.refresh();
+                showError("Connection Test Error", "Failed to test connection: " + throwable.getMessage());
+            });
+            return null;
+        });
     }
     
     @FXML
@@ -474,13 +592,10 @@ public class MainController {
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
     
-    public void navigateToUpdatesTab() {
-        if (updatesTab != null) {
-            TabPane tabPane = (TabPane) updatesTab.getTabPane();
-            if (tabPane != null) {
-                tabPane.getSelectionModel().select(updatesTab);
-            }
-        }
+    public void navigateToRepositoryManagement() {
+        // Since updates are now part of Repository Management tab,
+        // we don't need to do anything special - just refresh updates
+        refreshUpdates();
     }
     
     private String getRepositoryStatusText(Repository repository) {
@@ -546,5 +661,103 @@ public class MainController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void populateRepositoryEditFields(Repository repository) {
+        if (repository == null) {
+            repoEditNameField.setText("");
+            repoEditUrlField.setText("");
+            repoEditPasswordField.setText("");
+            repoEditEnabledCheck.setSelected(false);
+        } else {
+            repoEditNameField.setText(repository.getName());
+            repoEditUrlField.setText(repository.getUrl());
+            repoEditPasswordField.setText(repository.getPassword() != null ? repository.getPassword() : "");
+            repoEditEnabledCheck.setSelected(repository.isEnabled());
+        }
+    }
+
+    @FXML
+    private void saveRepositoryChanges() {
+        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
+        if (selectedRepo == null) {
+            showError("No Repository Selected", "Please select a repository to edit.");
+            return;
+        }
+
+        String name = repoEditNameField.getText().trim();
+        String url = repoEditUrlField.getText().trim();
+        String password = repoEditPasswordField.getText();
+
+        if (name.isEmpty()) {
+            showError("Invalid Input", "Repository name cannot be empty.");
+            return;
+        }
+
+        if (url.isEmpty()) {
+            showError("Invalid Input", "Repository URL cannot be empty.");
+            return;
+        }
+
+        try {
+            // Update the repository
+            selectedRepo.setName(name);
+            selectedRepo.setUrl(url);
+            selectedRepo.setPassword(password.isEmpty() ? null : password);
+            selectedRepo.setEnabled(repoEditEnabledCheck.isSelected());
+
+            // Save to config
+            config.updateRepository(selectedRepo);
+            config.saveConfig();
+
+            // Refresh the table display
+            repositoryStatusTable.refresh();
+
+            showInfo("Repository Updated", "Repository connection details have been saved successfully.");
+            
+            // Test connection if enabled
+            if (selectedRepo.isEnabled()) {
+                testSelectedRepositoryFromStatus();
+            }
+        } catch (Exception e) {
+            showError("Save Error", "Failed to save repository changes: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void deleteSelectedRepository() {
+        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
+        if (selectedRepo == null) {
+            showError("No Repository Selected", "Please select a repository to delete.");
+            return;
+        }
+
+        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmDialog.setTitle("Confirm Delete");
+        confirmDialog.setHeaderText("Delete Repository");
+        confirmDialog.setContentText("Are you sure you want to delete the repository '" + 
+                                   selectedRepo.getName() + "'?\n\nThis will remove all connection details but will not delete downloaded mods.");
+
+        Optional<ButtonType> result = confirmDialog.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                // Remove from repositories list
+                repositories.remove(selectedRepo);
+
+                // Remove from config
+                config.removeRepository(selectedRepo.getId());
+                config.saveConfig();
+
+                // Clear edit fields
+                populateRepositoryEditFields(null);
+
+                // Refresh repository combo box in mod sets tab
+                repositoryComboBox.getSelectionModel().clearSelection();
+
+                showInfo("Repository Deleted", "Repository '" + selectedRepo.getName() + "' has been deleted successfully.");
+            } catch (Exception e) {
+                showError("Delete Error", "Failed to delete repository: " + e.getMessage());
+            }
+        }
     }
 }

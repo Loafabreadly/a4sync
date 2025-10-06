@@ -1,0 +1,147 @@
+/* Main Application Styles */
+
+.root {
+    -fx-font-family: "Segoe UI", "Liberation Sans", sans-serif;
+    -fx-font-size: 12px;
+}
+
+/* Section Headers */
+.section-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+    -fx-padding: 5px 0px 5px 0px;
+}
+
+/* Connection Editor Styling */
+.connection-editor {
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-padding: 10px;
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 5px;
+}
+
+/* Button Styling */
+.button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-padding: 5px 10px;
+}
+
+.button:hover {
+    -fx-background-color: #2980b9;
+}
+
+.button:pressed {
+    -fx-background-color: #21618c;
+}
+
+/* Delete Button */
+.button:contains("Delete") {
+    -fx-background-color: #e74c3c;
+}
+
+.button:contains("Delete"):hover {
+    -fx-background-color: #c0392b;
+}
+
+/* Table Styling */
+.table-view {
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+}
+
+.table-view .column-header {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #ecf0f1;
+}
+
+/* Text Field Styling */
+.text-field, .password-field {
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-padding: 5px;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px;
+}
+
+/* ComboBox Styling */
+.combo-box {
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.combo-box:focused {
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px;
+}
+
+/* Progress Bar Styling */
+.progress-bar {
+    -fx-accent: #3498db;
+}
+
+/* Split Pane Styling */
+.split-pane {
+    -fx-background-color: transparent;
+}
+
+.split-pane-divider {
+    -fx-background-color: #bdc3c7;
+    -fx-border-color: transparent;
+}
+
+/* Tab Pane Styling */
+.tab-pane {
+    -fx-tab-min-width: 120px;
+}
+
+.tab {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-padding: 8px 16px;
+}
+
+.tab:selected {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.tab:hover {
+    -fx-background-color: #d5dbdb;
+}
+
+/* Status Indicators */
+.status-online {
+    -fx-text-fill: #27ae60;
+    -fx-font-weight: bold;
+}
+
+.status-offline {
+    -fx-text-fill: #e74c3c;
+    -fx-font-weight: bold;
+}
+
+.status-unknown {
+    -fx-text-fill: #f39c12;
+    -fx-font-weight: bold;
+}

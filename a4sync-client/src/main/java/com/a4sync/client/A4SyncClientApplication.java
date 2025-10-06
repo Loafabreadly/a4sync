@@ -81,11 +81,11 @@ public class A4SyncClientApplication extends Application {
                         
                         Optional<ButtonType> result = alert.showAndWait();
                         if (result.isPresent() && result.get() == ButtonType.OK) {
-                            // Navigate to updates view
+                            // Navigate to repository management view
                             if (mainController != null) {
-                                mainController.navigateToUpdatesTab();
+                                mainController.navigateToRepositoryManagement();
                             }
-                            log.info("User acknowledged updates - navigated to updates tab");
+                            log.info("User acknowledged updates - navigated to repository management tab");
                         }
                     });
                 } else {
