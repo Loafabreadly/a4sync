@@ -344,6 +344,60 @@ public class MainController {
         info.showAndWait();
     }
     
+        @FXML
+    private void refreshAllRepositories() {
+        // TODO: Implement refresh all repositories functionality
+        System.out.println("Refresh all repositories action triggered");
+    }
+
+    @FXML
+    private void testSelectedRepository() {
+        // TODO: Implement test selected repository functionality
+        System.out.println("Test selected repository action triggered");
+    }
+
+    @FXML
+    private void addSearchDirectory() {
+        // TODO: Implement add search directory functionality
+        System.out.println("Add search directory action triggered");
+    }
+
+    @FXML
+    private void createModSet() {
+        // TODO: Implement create mod set functionality
+        System.out.println("Create mod set action triggered");
+    }
+
+    @FXML
+    private void deleteModSet() {
+        // TODO: Implement delete mod set functionality
+        System.out.println("Delete mod set action triggered");
+    }
+
+    @FXML
+    private void connectToRepository() {
+        // TODO: Implement connect to repository functionality
+        System.out.println("Connect to repository action triggered");
+    }
+
+    @FXML
+    private void refreshUpdates() {
+        // TODO: Implement refresh updates functionality
+        System.out.println("Refresh updates action triggered");
+    }
+
+    @FXML
+    private void updateSelectedModSets() {
+        // TODO: Implement update selected mod sets functionality
+        System.out.println("Update selected mod sets action triggered");
+    }
+
+    @FXML
+    private void updateAllModSets() {
+        // TODO: Implement update all mod sets functionality
+        System.out.println("Update all mod sets action triggered");
+    }
+    
     @FXML 
     private void showLocalModManager() {
         Alert info = new Alert(Alert.AlertType.INFORMATION);
