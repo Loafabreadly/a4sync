@@ -19,24 +19,12 @@
             <SeparatorMenuItem/>
             <MenuItem text="Exit" onAction="#exit"/>
         </Menu>
-        <Menu text="Repository">
-            <MenuItem text="Add Repository" onAction="#addRepository"/>
-            <MenuItem text="Manage Repositories" onAction="#manageRepositories"/>
-            <SeparatorMenuItem/>
-            <MenuItem text="Refresh All" onAction="#refreshAllRepositories"/>
-        </Menu>
-        <Menu text="Local Content">
-            <MenuItem text="Local Mod Manager" onAction="#showLocalModManager"/>
-            <MenuItem text="Scan Directories" onAction="#scanLocalDirectories"/>
-            <SeparatorMenuItem/>
-            <MenuItem text="Cleanup Orphaned Files" onAction="#cleanupOrphanedFiles"/>
-        </Menu>
         <Menu text="Help">
             <MenuItem text="About" onAction="#showAboutDialog"/>
         </Menu>
     </MenuBar>
 
-    <TabPane VBox.vgrow="ALWAYS">
+    <TabPane fx:id="mainTabPane" VBox.vgrow="ALWAYS">
         <Tab text="Mod Sets" closable="false">
             <VBox spacing="10">
                 <HBox spacing="10" alignment="CENTER_LEFT">

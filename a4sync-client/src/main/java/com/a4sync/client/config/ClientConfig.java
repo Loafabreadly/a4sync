@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import com.a4sync.common.model.GameOptions;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -75,6 +76,7 @@ public class ClientConfig {
         return Collections.unmodifiableList(repositories);
     }
     
+    @JsonIgnore
     public List<Repository> getEnabledRepositories() {
         return repositories.stream()
             .filter(Repository::isEnabled)
@@ -94,10 +96,12 @@ public class ClientConfig {
     }
     
     // Add getters that return proper types (Lombok @Data should handle these, but adding for clarity)
+    @JsonIgnore
     public String getSteamPathAsString() {
         return steamPath != null ? steamPath.toString() : null;
     }
     
+    @JsonIgnore
     public String getGamePathAsString() {
         return gamePath != null ? gamePath.toString() : null;
     }
@@ -110,6 +114,7 @@ public class ClientConfig {
         return gamePath;
     }
     
+    @JsonIgnore
     public GameOptions getDefaultGameOptionsObject() {
         return defaultGameOptions;
     }

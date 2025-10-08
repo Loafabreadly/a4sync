@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class MainController {
+    @FXML private TabPane mainTabPane;
     @FXML private ListView<RepositoryModSet> modSetList;
     @FXML private TextField searchDirectoryField;
     @FXML private ComboBox<Repository> repositoryComboBox;
@@ -353,14 +354,6 @@ public class MainController {
     }
     
     @FXML
-    private void manageRepositories() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setTitle("Repository Manager");
-        info.setContentText("Advanced repository management coming soon!");
-        info.showAndWait();
-    }
-    
-        @FXML
     private void refreshAllRepositories() {
         if (repositories.isEmpty()) {
             showInfo("No Repositories", "No repositories configured to refresh.");
@@ -1181,14 +1174,6 @@ public class MainController {
         downloadThread.start();
     }
     
-    @FXML 
-    private void showLocalModManager() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setTitle("Local Mod Manager");
-        info.setContentText("Local mod management coming soon!");
-        info.showAndWait();
-    }
-    
     @FXML
     private void showSettings() {
         SettingsDialog dialog = new SettingsDialog(modSetList.getScene().getWindow(), config);
@@ -1199,19 +1184,6 @@ public class MainController {
     @FXML
     private void exit() {
         javafx.application.Platform.exit();
-    }
-    
-    @FXML
-    private void scanLocalDirectories() {
-        showLocalModManager(); // For now, redirect to local mod manager
-    }
-    
-    @FXML
-    private void cleanupOrphanedFiles() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setTitle("Cleanup");
-        info.setContentText("Cleanup feature coming soon!");
-        info.showAndWait();
     }
     
     @FXML
