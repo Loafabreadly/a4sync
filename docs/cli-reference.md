@@ -157,8 +157,6 @@ java -jar a4sync-tools.jar modset create [options] <name>
 **Options:**
 - `-r, --repository <path>` - Repository path (optional if configured in ~/.a4sync/config.properties)
 - `-d, --description <text>` - Description of the mod set
-- `-p, --profile <name>` - Game profile name
-- `--no-splash` - Disable splash screen
 
 **Examples:**
 ```bash
@@ -167,9 +165,6 @@ java -jar a4sync-tools.jar modset create "Training Mods"
 
 # Create with description and specific repository
 java -jar a4sync-tools.jar modset create "Training Mods" -r /srv/a4sync --description "Essential mods for training sessions"
-
-# Create with game profile and no splash screen
-java -jar a4sync-tools.jar modset create "Operations" --profile ops --no-splash
 ```
 
 ### `modset list`

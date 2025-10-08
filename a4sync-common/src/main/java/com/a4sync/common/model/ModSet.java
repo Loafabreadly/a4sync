@@ -15,7 +15,6 @@ public class ModSet {
     private String description;
     private String version;
     private List<Mod> mods = new ArrayList<>();
-    private GameOptions gameOptions = new GameOptions();
     private List<String> dlcRequired = new ArrayList<>();
     private long totalSize;
     private LocalDateTime lastUpdated;

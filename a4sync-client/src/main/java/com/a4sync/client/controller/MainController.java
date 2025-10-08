@@ -9,6 +9,7 @@ import com.a4sync.client.service.MultiRepositoryService;
 import com.a4sync.client.service.RepositoryManager;
 import com.a4sync.client.service.RepositoryManagerFactory;
 import com.a4sync.client.service.RepositoryService;
+import com.a4sync.common.model.GameOptions;
 import com.a4sync.common.model.GameType;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
@@ -201,14 +202,17 @@ public class MainController {
             ModSet modSet = repositoryModSet.getModSet();
             modSetName.setText(modSet.getName());
             
-            if (modSet.getGameOptions() != null) {
-                profileName.setText(modSet.getGameOptions().getProfileName() != null ? 
-                    modSet.getGameOptions().getProfileName() : "");
-                gameTypeComboBox.setValue(modSet.getGameOptions().getGameType() != null ? 
-                    modSet.getGameOptions().getGameType() : GameType.ARMA_4);
-                noSplashCheck.setSelected(modSet.getGameOptions().isNoSplash());
+            // Load game options from client configuration, not from modset
+            GameOptions clientOptions = config.getDefaultGameOptions();
+            if (clientOptions != null) {
+                profileName.setText(clientOptions.getProfileName() != null ? 
+                    clientOptions.getProfileName() : modSet.getName().toLowerCase());
+                gameTypeComboBox.setValue(clientOptions.getGameType() != null ? 
+                    clientOptions.getGameType() : GameType.ARMA_4);
+                noSplashCheck.setSelected(clientOptions.isNoSplash());
             } else {
-                profileName.clear();
+                // Fallback defaults
+                profileName.setText(modSet.getName().toLowerCase());
                 gameTypeComboBox.setValue(GameType.ARMA_4);
                 noSplashCheck.setSelected(false);
             }

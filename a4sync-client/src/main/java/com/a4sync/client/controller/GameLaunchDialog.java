@@ -129,13 +129,8 @@ public class GameLaunchDialog extends Stage {
     }
     
     private void loadCurrentOptions() {
-        // Load from modset options first, then fall back to defaults
-        GameOptions options = null;
-        if (modSet != null && modSet.getGameOptions() != null) {
-            options = modSet.getGameOptions();
-        } else {
-            options = config.getDefaultGameOptions();
-        }
+        // Load from client-side configuration only
+        GameOptions options = config.getDefaultGameOptions();
         
         if (options != null) {
             gameTypeComboBox.setValue(options.getGameType() != null ? 

@@ -26,7 +26,8 @@ public class GameLauncher {
             throw new IllegalStateException("Steam path not configured");
         }
 
-        GameOptions options = modSet != null ? modSet.getGameOptions() : config.getDefaultGameOptionsObject();
+        // Use client-side game options instead of server-side modset options
+        GameOptions options = config.getDefaultGameOptionsObject();
         GameType gameType = options != null && options.getGameType() != null ? 
                            options.getGameType() : GameType.ARMA_4;
 
@@ -46,7 +47,8 @@ public class GameLauncher {
             throw new IllegalStateException("Steam path not configured");
         }
 
-        GameOptions options = modSet != null ? modSet.getGameOptions() : config.getDefaultGameOptionsObject();
+        // Use client-side game options instead of server-side modset options
+        GameOptions options = config.getDefaultGameOptionsObject();
         
         List<String> command = buildSteamCommand(gameType, modSet, options);
         

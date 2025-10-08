@@ -1,14 +1,16 @@
 package com.a4sync.tools;
 
-import com.a4sync.common.model.GameOptions;
 import com.a4sync.common.model.Mod;
 import com.a4sync.common.model.ModSet;
+import com.a4sync.common.model.ModIndex;
 import com.a4sync.tools.config.ConfigManager;
+import com.a4sync.tools.util.ModUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
 
+import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -39,12 +41,6 @@ public class ModSetCommand {
         @Option(names = {"-d", "--description"}, description = "Mod set description")
         private String description;
         
-        @Option(names = {"-p", "--profile"}, description = "Game profile name")
-        private String profile;
-        
-        @Option(names = {"--no-splash"}, description = "Disable splash screen")
-        private boolean noSplash = false;
-        
         @Override
         public Integer call() throws Exception {
             ConfigManager config = new ConfigManager();
@@ -59,11 +55,8 @@ public class ModSetCommand {
             ModSet modSet = new ModSet();
             modSet.setName(name);
             modSet.setDescription(description != null ? description : name);
-            
-            GameOptions options = new GameOptions();
-            options.setProfileName(profile != null ? profile : name.toLowerCase());
-            options.setNoSplash(noSplash);
-            modSet.setGameOptions(options);
+            modSet.setVersion("1.0.0"); // Default version
+            modSet.setLastUpdated(java.time.LocalDateTime.now());
             
             Path modSetsDir = resolvedPath.resolve("modsets");
             Files.createDirectories(modSetsDir);
@@ -149,21 +142,61 @@ public class ModSetCommand {
             ObjectMapper mapper = new ObjectMapper();
             ModSet modSet = mapper.readValue(modSetFile.toFile(), ModSet.class);
             
-            Set<String> currentModNames = new HashSet<>();
+            // Build a map of existing mods for fast lookup
+            Map<String, Mod> existingMods = new HashMap<>();
             if (modSet.getMods() != null) {
-                for (com.a4sync.common.model.Mod mod : modSet.getMods()) {
-                    currentModNames.add(mod.getName());
+                for (Mod mod : modSet.getMods()) {
+                    existingMods.put(mod.getName(), mod);
                 }
             }
-            currentModNames.addAll(mods);
             
-            java.util.List<com.a4sync.common.model.Mod> updatedMods = new ArrayList<>();
-            for (String modName : currentModNames) {
-                com.a4sync.common.model.Mod mod = new com.a4sync.common.model.Mod();
-                mod.setName(modName);
-                updatedMods.add(mod);
+            // Add new mods while preserving existing ones
+            for (String modName : mods) {
+                if (existingMods.containsKey(modName)) {
+                    System.out.println("Mod " + modName + " already exists in modset");
+                    continue;
+                }
+                
+                // Verify the mod exists in the repository
+                Path modPath = resolvedPath.resolve(modName);
+                if (!Files.exists(modPath) || !Files.isDirectory(modPath)) {
+                    System.err.println("Warning: Mod directory not found: " + modName);
+                    System.err.println("Make sure to create the mod with 'a4sync mod create " + modPath + "' first");
+                    continue;
+                }
+                
+                try {
+                    // Read mod metadata from mod.json
+                    ModIndex modIndex = ModUtils.readModIndex(modPath);
+                    
+                    // Create Mod object with proper metadata
+                    Mod mod = new Mod();
+                    mod.setName(modIndex.getName());
+                    mod.setVersion(modIndex.getVersion());
+                    mod.setSize(modIndex.getTotalSize());
+                    mod.setHash(modIndex.getHash());
+                    // Server-relative download URL will be set by the server at runtime
+                    mod.setDownloadUrl("/api/v1/modsets/" + name + "/mods/" + modIndex.getName());
+                    
+                    existingMods.put(modName, mod);
+                    System.out.println("Added " + modName + " (v" + modIndex.getVersion() + ", " + 
+                                     formatSize(modIndex.getTotalSize()) + ")");
+                    
+                } catch (IOException e) {
+                    System.err.println("Error reading mod metadata for " + modName + ": " + e.getMessage());
+                    System.err.println("Make sure to run 'a4sync mod create " + modPath + "' first");
+                    continue;
+                }
             }
+            
+            // Update the modset with all mods and recalculate total size
+            java.util.List<Mod> updatedMods = new ArrayList<>(existingMods.values());
             modSet.setMods(updatedMods);
+            
+            // Recalculate total size
+            long totalSize = updatedMods.stream().mapToLong(Mod::getSize).sum();
+            modSet.setTotalSize(totalSize);
+            modSet.setLastUpdated(java.time.LocalDateTime.now());
             
             mapper.writeValue(modSetFile.toFile(), modSet);
             System.out.println("Added mods to " + name);
@@ -210,13 +243,32 @@ public class ModSetCommand {
                 for (Mod mod : modSet.getMods()) {
                     if (!mods.contains(mod.getName())) {
                         updatedMods.add(mod);
+                    } else {
+                        System.out.println("Removed " + mod.getName());
                     }
                 }
+                
                 modSet.setMods(updatedMods);
+                
+                // Recalculate total size
+                long totalSize = updatedMods.stream().mapToLong(Mod::getSize).sum();
+                modSet.setTotalSize(totalSize);
+                modSet.setLastUpdated(java.time.LocalDateTime.now());
+                
                 mapper.writeValue(modSetFile.toFile(), modSet);
-                System.out.println("Removed mods from " + name);
+                System.out.println("Updated modset " + name + " (total size: " + formatSize(totalSize) + ")");
             }
             return 0;
         }
+    }
+    
+    /**
+     * Formats file size in human-readable format
+     */
+    private static String formatSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
 }

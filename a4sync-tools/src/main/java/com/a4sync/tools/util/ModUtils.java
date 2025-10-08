@@ -175,6 +175,17 @@ public class ModUtils {
     }
     
     /**
+     * Reads mod metadata from mod.json file
+     */
+    public static ModIndex readModIndex(Path modPath) throws IOException {
+        Path modJsonPath = modPath.resolve("mod.json");
+        if (!Files.exists(modJsonPath)) {
+            throw new IllegalArgumentException("No mod.json found in: " + modPath + ". Use 'mod create' first.");
+        }
+        return objectMapper.readValue(modJsonPath.toFile(), ModIndex.class);
+    }
+    
+    /**
      * Formats file size in human-readable format
      */
     private static String formatSize(long bytes) {
