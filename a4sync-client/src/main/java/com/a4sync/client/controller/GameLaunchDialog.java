@@ -171,18 +171,15 @@ public class GameLaunchDialog extends Stage {
                 config.saveDefaultGameOptions(launchOptions);
             }
             
-            // Update modset options if we have a modset
-            if (modSet != null) {
-                modSet.setGameOptions(launchOptions);
-            }
+            // Save the current launch options to client config (GameOptions are now client-side only)
+            config.saveDefaultGameOptions(launchOptions);
             
             // Launch the game
             if (modSet != null) {
                 gameLauncher.launchGameWithType(modSet, selectedGame);
             } else {
-                // Create temporary modset for launch
+                // Create empty modset for launch (game options come from config now)
                 ModSet tempModSet = new ModSet();
-                tempModSet.setGameOptions(launchOptions);
                 gameLauncher.launchGameWithType(tempModSet, selectedGame);
             }
             

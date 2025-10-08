@@ -6,8 +6,7 @@ import com.a4sync.client.model.RepositoryModSet;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
 import com.a4sync.client.service.MultiRepositoryService;
-import com.a4sync.client.service.RepositoryManager;
-import com.a4sync.client.service.RepositoryManagerFactory;
+
 import com.a4sync.client.service.RepositoryService;
 import com.a4sync.common.model.GameOptions;
 import com.a4sync.common.model.GameType;
@@ -55,11 +54,11 @@ public class MainController {
     @FXML private Label statusLabel;
     
     // Updates table components (now in Repository Management tab)
-    @FXML private TableView<RepositoryManager.ModSetStatus> updatesTable;
-    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateModSetColumn;
-    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateRepositoryColumn;
-    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateCurrentVersionColumn;
-    @FXML private TableColumn<RepositoryManager.ModSetStatus, String> updateNewVersionColumn;
+    @FXML private TableView<ModSetStatus> updatesTable;
+    @FXML private TableColumn<ModSetStatus, String> updateModSetColumn;
+    @FXML private TableColumn<ModSetStatus, String> updateRepositoryColumn;
+    @FXML private TableColumn<ModSetStatus, String> updateCurrentVersionColumn;
+    @FXML private TableColumn<ModSetStatus, String> updateNewVersionColumn;
     
     // Repository status tab components
     @FXML private TableView<Repository> repositoryStatusTable;
@@ -85,7 +84,7 @@ public class MainController {
     private final ObservableList<RepositoryModSet> modSets;
     private final ObservableList<Mod> availableMods;
     private final ObservableList<Repository> repositories;
-    private final ObservableList<RepositoryManager.ModSetStatus> updateStatuses;
+    private final ObservableList<ModSetStatus> updateStatuses;
     
     public MainController() {
         this.config = ClientConfig.loadConfig();
@@ -128,7 +127,7 @@ public class MainController {
         updateRepositoryColumn.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().getRepository().getName()));
         updateCurrentVersionColumn.setCellValueFactory(cellData -> {
-            RepositoryManager.ModSetStatus status = cellData.getValue();
+            ModSetStatus status = cellData.getValue();
             return new SimpleStringProperty(status.getLocalSet() != null ? 
                 status.getLocalSet().getVersion() : "Not Downloaded");
         });
@@ -327,6 +326,7 @@ public class MainController {
             }).thenAccept(connectionSuccess -> Platform.runLater(() -> {
                 if (connectionSuccess) {
                     multiRepositoryService.addRepository(newRepo);
+                    config.saveConfig(); // Save the configuration to persist the repository
                     loadRepositories();
                     repositoryComboBox.getSelectionModel().select(newRepo);
                     
@@ -348,6 +348,7 @@ public class MainController {
                     Optional<ButtonType> confirmResult = confirm.showAndWait();
                     if (confirmResult.isPresent() && confirmResult.get() == ButtonType.OK) {
                         multiRepositoryService.addRepository(newRepo);
+                        config.saveConfig(); // Save the configuration to persist the repository
                         loadRepositories();
                         repositoryComboBox.getSelectionModel().select(newRepo);
                         statusLabel.setText("Repository '" + newRepo.getName() + "' added (offline)");
@@ -892,6 +893,55 @@ public class MainController {
         int upToDate = 0;
         int localNewer = 0;
     }
+
+    // Replacement for RepositoryManager.ModSetStatus
+    public static class ModSetStatus {
+        public enum Status {
+            NOT_DOWNLOADED,
+            UPDATE_AVAILABLE,
+            UP_TO_DATE
+        }
+        
+        private final Repository repository;
+        private final ModSet remoteSet;
+        private final ModSet localSet;
+        private final Status status;
+        
+        private ModSetStatus(Repository repository, ModSet remoteSet, ModSet localSet, Status status) {
+            this.repository = repository;
+            this.remoteSet = remoteSet;
+            this.localSet = localSet;
+            this.status = status;
+        }
+        
+        public Repository getRepository() {
+            return repository;
+        }
+        
+        public ModSet getRemoteSet() {
+            return remoteSet;
+        }
+        
+        public ModSet getLocalSet() {
+            return localSet;
+        }
+        
+        public Status getStatus() {
+            return status;
+        }
+        
+        public static ModSetStatus notDownloaded(Repository repo, ModSet remoteSet) {
+            return new ModSetStatus(repo, remoteSet, null, Status.NOT_DOWNLOADED);
+        }
+        
+        public static ModSetStatus updateAvailable(Repository repo, ModSet remoteSet, ModSet localSet) {
+            return new ModSetStatus(repo, remoteSet, localSet, Status.UPDATE_AVAILABLE);
+        }
+        
+        public static ModSetStatus upToDate(Repository repo, ModSet remoteSet, ModSet localSet) {
+            return new ModSetStatus(repo, remoteSet, localSet, Status.UP_TO_DATE);
+        }
+    }
     
     private RepositoryModSet findLocalModSet(String modSetName) {
         return modSets.stream()
@@ -939,6 +989,53 @@ public class MainController {
     }
     
     private void processUpdateCheckResult(UpdateCheckResult result) {
+        // Clear previous results
+        updateStatuses.clear();
+        
+        // Convert ModSetUpdateInfo objects to ModSetStatus objects for the table
+        for (ModSetUpdateInfo updateInfo : result.modSetUpdates) {
+            // Find the repository for this mod set
+            Repository repository = repositories.stream()
+                .filter(repo -> repo.getName().equals(updateInfo.repositoryName))
+                .findFirst()
+                .orElse(null);
+                
+            if (repository != null) {
+                // Create the remote ModSet object
+                ModSet remoteSet = new ModSet();
+                remoteSet.setName(updateInfo.modSetName);
+                remoteSet.setVersion(updateInfo.remoteVersion);
+                remoteSet.setTotalSize(updateInfo.remoteSize);
+                remoteSet.setLastUpdated(updateInfo.lastUpdated);
+                
+                // Find local ModSet if exists
+                RepositoryModSet localRepoModSet = findLocalModSet(updateInfo.modSetName);
+                ModSet localSet = localRepoModSet != null ? localRepoModSet.getModSet() : null;
+                
+                // Create ModSetStatus based on update status
+                ModSetStatus status;
+                switch (updateInfo.updateStatus) {
+                    case NOT_DOWNLOADED:
+                        status = ModSetStatus.notDownloaded(repository, remoteSet);
+                        break;
+                    case UPDATE_AVAILABLE:
+                        status = ModSetStatus.updateAvailable(repository, remoteSet, localSet);
+                        break;
+                    case UP_TO_DATE:
+                        status = ModSetStatus.upToDate(repository, remoteSet, localSet);
+                        break;
+                    default:
+                        continue; // Skip LOCAL_NEWER status for now
+                }
+                
+                // Only add actionable items (not up-to-date) to the updates table
+                if (updateInfo.updateStatus != UpdateStatus.UP_TO_DATE && 
+                    updateInfo.updateStatus != UpdateStatus.LOCAL_NEWER) {
+                    updateStatuses.add(status);
+                }
+            }
+        }
+        
         // Display comprehensive update summary
         StringBuilder summary = new StringBuilder();
         summary.append("Update Check Results:\n\n");
@@ -967,7 +1064,7 @@ public class MainController {
     @FXML
     private void updateSelectedModSets() {
         // Check if we have selected mod sets from the updates table first
-        RepositoryManager.ModSetStatus selectedUpdate = updatesTable.getSelectionModel().getSelectedItem();
+        ModSetStatus selectedUpdate = updatesTable.getSelectionModel().getSelectedItem();
         if (selectedUpdate != null) {
             downloadSelectedModSetUpdate(selectedUpdate);
             return;
@@ -983,7 +1080,7 @@ public class MainController {
         showError("No Selection", "Please select a mod set to download from either the Available Mod Sets or Updates table.");
     }
     
-    private void downloadSelectedModSetUpdate(RepositoryManager.ModSetStatus modSetStatus) {
+    private void downloadSelectedModSetUpdate(ModSetStatus modSetStatus) {
         String modSetName = modSetStatus.getRemoteSet() != null ? modSetStatus.getRemoteSet().getName() : "Unknown ModSet";
         showInfo("Download Starting", "Starting download of " + modSetName);
         
@@ -1098,9 +1195,9 @@ public class MainController {
     @FXML
     private void updateAllModSets() {
         // Get all mod sets that need updates
-        List<RepositoryManager.ModSetStatus> modSetsToUpdate = updateStatuses.stream()
-            .filter(status -> status.getStatus() == RepositoryManager.ModSetStatus.Status.UPDATE_AVAILABLE || 
-                            status.getStatus() == RepositoryManager.ModSetStatus.Status.NOT_DOWNLOADED)
+        List<ModSetStatus> modSetsToUpdate = updateStatuses.stream()
+            .filter(status -> status.getStatus() == ModSetStatus.Status.UPDATE_AVAILABLE || 
+                            status.getStatus() == ModSetStatus.Status.NOT_DOWNLOADED)
             .toList();
             
         if (modSetsToUpdate.isEmpty()) {
@@ -1128,7 +1225,7 @@ public class MainController {
                 int total = modSetsToUpdate.size();
                 int current = 0;
                 
-                for (RepositoryManager.ModSetStatus modSetStatus : modSetsToUpdate) {
+                for (ModSetStatus modSetStatus : modSetsToUpdate) {
                     current++;
                     updateProgress(current, total);
                     String modSetName = modSetStatus.getRemoteSet() != null ? modSetStatus.getRemoteSet().getName() : "ModSet " + current;
