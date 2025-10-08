@@ -98,15 +98,16 @@ public class ModSetCommand {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(modSetsDir, "*.json")) {
                 for (Path modSetFile : stream) {
                     if (Files.exists(modSetFile)) {
-                    ModSet modSet = ModUtils.getObjectMapper().readValue(modSetFile.toFile(), ModSet.class);
-                    System.out.println("Mod Set: " + modSet.getName());
-                    System.out.printf("%s - %s%n", modSet.getName(), modSet.getDescription());
-                    if (modSet.getMods() != null) {
-                        modSet.getMods().forEach(mod -> System.out.printf("  - %s%n", mod));
+                        ModSet modSet = ModUtils.getObjectMapper().readValue(modSetFile.toFile(), ModSet.class);
+                        System.out.println("Mod Set: " + modSet.getName());
+                        System.out.printf("%s - %s%n", modSet.getName(), modSet.getDescription());
+                        if (modSet.getMods() != null) {
+                            modSet.getMods().forEach(mod -> System.out.printf("  - %s%n", mod));
+                        }
                     }
                 }
-            }
             return 0;
+            }
         }
     }
     
@@ -273,5 +274,4 @@ public class ModSetCommand {
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
-}
 }
