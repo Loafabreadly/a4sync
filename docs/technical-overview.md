@@ -22,8 +22,9 @@
 - **SHA-256 Verification** for all downloaded files
 - **Steam Integration** with auto-detection and game launching
 - **Configuration Management** with working directory priority loading
-- **Progress Tracking** with real-time speed/ETA calculations
+- **Progress Tracking** with real-time speed/ETA calculations (`DownloadProgress`, `ModSetDownloadProgress`)
 - **Repository Auto-Discovery** via `.a4sync` configuration files
+- **Client Models** (`ModSetStatus`, `ValidationResult`, `ModInfo`, `DownloadResult`) for UI state management
 
 #### Tools (a4sync-tools)
 - **Complete CLI Interface** with Picocli and shell completion
@@ -34,7 +35,8 @@
 - **Cross-Platform Support** for Windows, Linux, macOS
 
 #### Common (a4sync-common)
-- **Comprehensive Data Models** (`ModSet`, `Mod`, `A4SyncConfig`, `RepositoryInfo`)
+- **Comprehensive Data Models** (`ModSet`, `Mod`, `A4SyncConfig`, `RepositoryInfo`, `ModFile`, `RepositoryConfig`)
+- **Configuration Models** (`RepositoryMetadata`, `ConnectionSettings`, `ClientSettings`, `DownloadSettings`, `SecuritySettings`, `UISettings`)
 - **Game Type Support** for Arma 3 and Arma 4
 - **Version Compatibility** checking with semantic versioning
 - **Shared Utilities** for file operations and validation
@@ -67,12 +69,13 @@ Game launching is fully implemented with:
 
 ### Current Limitations & Known Issues
 
-#### Model Inconsistencies
-The codebase has been cleaned up with the following improvements:
+#### Code Organization Improvements
+The codebase has been significantly improved with:
 - **Unified Repository Model**: Single `Repository` model with `MultiRepositoryService`
-- **Missing Getters**: Some Lombok-generated methods not available
-- **Duplicate Classes**: File system issues with duplicate class definitions
-- **Import Conflicts**: Circular dependencies between client models
+- **Extracted Model Classes**: 18+ nested classes moved to individual files for better maintainability
+- **Clear Package Structure**: Separate model classes in dedicated packages
+- **Reduced Complexity**: Large files with nested classes split into focused, single-purpose classes
+- **Better Navigation**: Individual class files easier to find and maintain than nested classes
 
 #### Authentication System
 While implemented, the authentication system has gaps:

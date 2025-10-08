@@ -7,9 +7,9 @@ A4Sync is a military-grade mod synchronization tool for Arma 3/4 built as a Mave
 ## Architecture & Module Boundaries
 
 ### Multi-Module Structure
-- **a4sync-common**: Shared models (`ModSet`, `Mod`, `A4SyncConfig`, `RepositoryInfo`, `GameOptions`, `ModIndex`), enums (`GameType`, `HealthStatus`), and version utilities
-- **a4sync-server**: Spring Boot REST API with mod file serving, health monitoring, Discord webhooks, and A4Sync config generation
-- **a4sync-client**: JavaFX desktop application with multi-repository management, Steam integration, and consolidated UI
+- **a4sync-common**: Shared models (`ModSet`, `Mod`, `A4SyncConfig`, `RepositoryInfo`, `GameOptions`, `ModIndex`, `ModFile`, `RepositoryMetadata`, `ConnectionSettings`, `ClientSettings`, `DownloadSettings`, `SecuritySettings`, `UISettings`, `RepositoryConfig`), enums (`GameType`, `HealthStatus`), and version utilities
+- **a4sync-server**: Spring Boot REST API with mod file serving, health monitoring, Discord webhooks, and A4SyncConfig generation
+- **a4sync-client**: JavaFX desktop application with multi-repository management, Steam integration, consolidated UI, and model classes (`ModSetDownloadProgress`, `DownloadResult`, `ModSetStatus`, `ValidationResult`, `ModInfo`, `DownloadProgress`)
 - **a4sync-tools**: Picocli CLI tools for repository management, mod creation, and modset administration
 
 ### Key Service Boundaries
@@ -169,9 +169,11 @@ Client config follows working-directory-first pattern for portable deployments. 
 ### Source Structure
 - FXML files in `src/main/resources/fxml/` with matching controller classes in `controller/` package
 - Service classes in `service/` package with clear separation of concerns
+- Model classes in `model/` package as individual files (no nested classes for complex, reusable models)
 - Configuration classes use `@ConfigurationProperties` with Jackson serialization
 - Common models in `a4sync-common` to avoid circular dependencies between modules
 - Exception classes in dedicated `exception/` package with specific error types
+- **Code Organization**: Individual class files preferred over nested classes for maintainability and navigation
 
 ### Runtime Structure
 - Server mod storage: `{root-directory}/{modset-name}/@{mod-name}/` (follows Arma convention)

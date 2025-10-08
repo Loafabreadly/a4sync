@@ -209,25 +209,17 @@ public class A4SyncConfig {
     private RepositoryMetadata repository;
     private ConnectionSettings connection;
     private ClientSettings client;
-    
-    @Data
-    public static class RepositoryMetadata {
-        private String name;
-        private String description;
-        private String maintainer;
-        private String website;
-        private List<String> supportedGames;
-    }
-    
-    @Data
-    public static class ConnectionSettings {
-        private String baseUrl;
-        private boolean requiresAuthentication;
-        private List<String> mirrorUrls;
-        private long timeoutMs;
-        private int maxRetries;
-    }
 }
+```
+
+**Note**: `RepositoryMetadata`, `ConnectionSettings`, and `ClientSettings` are now individual classes in the `a4sync-common` module for better code organization and maintainability:
+
+- `RepositoryMetadata.java` - Repository information and metadata
+- `ConnectionSettings.java` - Connection and networking configuration  
+- `ClientSettings.java` - Client-specific settings with references to:
+  - `DownloadSettings.java` - Download behavior configuration
+  - `SecuritySettings.java` - Security and validation settings
+  - `UISettings.java` - User interface preferences
 ```
 
 ### Repository Structure
