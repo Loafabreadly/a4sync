@@ -64,7 +64,7 @@ public class RepositoryService {
         }
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(repositoryUrl + "api/version"))
+            .uri(URI.create(repositoryUrl + "api/v1/version"))
             .GET()
             .build();
 

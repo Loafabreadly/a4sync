@@ -66,6 +66,11 @@
     color: #ff8c00;
 }
 
+.repository-status-degraded {
+    -fx-text-fill: #ff6347;
+    color: #ff6347;
+}
+
 .repository-info {
     -fx-font-size: 11px;
     -fx-text-fill: #888888;
@@ -120,6 +125,11 @@
 .repository-status-testing {
     -fx-text-fill: #ffc107;
     color: #ffc107;
+}
+
+.repository-status-degraded {
+    -fx-text-fill: #fd7e14;
+    color: #fd7e14;
 }
 
 .info-text {

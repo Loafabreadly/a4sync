@@ -193,7 +193,7 @@ public class RepositoryController {
     private void testRepositoryConnection(RepositoryConfig repo, Label statusLabel) {
         Platform.runLater(() -> {
             statusLabel.setText("Testing...");
-            statusLabel.getStyleClass().removeAll("repository-status-success", "repository-status-error");
+            statusLabel.getStyleClass().removeAll("repository-status-success", "repository-status-error", "repository-status-degraded");
             statusLabel.getStyleClass().add("repository-status-testing");
         });
         
@@ -201,27 +201,53 @@ public class RepositoryController {
             try {
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(repo.getUrl() + "/api/modsets"))
+                    .uri(URI.create(repo.getUrl() + "/api/v1/health"))
                     .timeout(java.time.Duration.ofSeconds(10))
                     .GET()
                     .build();
                 
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                return response.statusCode() == 200;
+                
+                if (response.statusCode() == 200) {
+                    // Parse the JSON response to get the health status
+                    String body = response.body();
+                    if (body.contains("\"status\":\"UP\"")) {
+                        return "UP";
+                    } else if (body.contains("\"status\":\"DEGRADED\"")) {
+                        return "DEGRADED";
+                    } else if (body.contains("\"status\":\"DOWN\"")) {
+                        return "DOWN";
+                    } else {
+                        return "UNKNOWN";
+                    }
+                } else {
+                    return "DOWN";
+                }
             } catch (Exception e) {
-                return false;
+                return "DOWN";
             }
-        }).thenAccept(success -> Platform.runLater(() -> {
-            if (success) {
-                statusLabel.setText("Connected ✓");
-                statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-error");
-                statusLabel.getStyleClass().add("repository-status-success");
-                repo.setLastError(null);
-            } else {
-                statusLabel.setText("Connection Failed ✗");
-                statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-success");
-                statusLabel.getStyleClass().add("repository-status-error");
-                repo.setLastError("Connection test failed");
+        }).thenAccept(healthStatus -> Platform.runLater(() -> {
+            switch (healthStatus) {
+                case "UP":
+                    statusLabel.setText("Healthy ✓");
+                    statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-error", "repository-status-degraded");
+                    statusLabel.getStyleClass().add("repository-status-success");
+                    repo.setLastError(null);
+                    break;
+                case "DEGRADED":
+                    statusLabel.setText("Degraded ⚠");
+                    statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-error", "repository-status-success");
+                    statusLabel.getStyleClass().add("repository-status-degraded");
+                    repo.setLastError("Server is in degraded state");
+                    break;
+                case "DOWN":
+                case "UNKNOWN":
+                default:
+                    statusLabel.setText("Unhealthy ✗");
+                    statusLabel.getStyleClass().removeAll("repository-status-testing", "repository-status-success", "repository-status-degraded");
+                    statusLabel.getStyleClass().add("repository-status-error");
+                    repo.setLastError("Health check failed - status: " + healthStatus);
+                    break;
             }
             repo.setLastChecked(Instant.now());
             RepositoryManagerFactory.getInstance().updateRepository(repo);
@@ -233,19 +259,42 @@ public class RepositoryController {
         
         CompletableFuture.supplyAsync(() -> {
             try {
-                RepositoryManager manager = RepositoryManagerFactory.getInstance();
                 HttpClient client = HttpClient.newHttpClient();
-                HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(repo.getUrl() + "/api/modsets"))
+                
+                // First try to get repository info which should include size statistics
+                HttpRequest infoRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(repo.getUrl() + "/api/v1/repository/info"))
                     .timeout(java.time.Duration.ofSeconds(15))
                     .GET()
                     .build();
                 
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 200) {
-                    // Parse response to get size information
-                    // For now, we'll estimate based on mod sets count
-                    String body = response.body();
+                HttpResponse<String> infoResponse = client.send(infoRequest, HttpResponse.BodyHandlers.ofString());
+                if (infoResponse.statusCode() == 200) {
+                    // Try to parse repository info to get actual size
+                    String body = infoResponse.body();
+                    // Simple JSON parsing for totalSize field
+                    if (body.contains("\"totalSize\"")) {
+                        try {
+                            String sizeStr = body.substring(body.indexOf("\"totalSize\":") + 12);
+                            sizeStr = sizeStr.substring(0, sizeStr.indexOf(',') != -1 ? sizeStr.indexOf(',') : sizeStr.indexOf('}'));
+                            return Long.parseLong(sizeStr.trim());
+                        } catch (Exception e) {
+                            // Fall back to modsets endpoint for estimation
+                        }
+                    }
+                }
+                
+                // Fallback: use modsets endpoint for estimation
+                HttpRequest modsetsRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(repo.getUrl() + "/api/v1/modsets"))
+                    .timeout(java.time.Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+                
+                HttpResponse<String> modsetsResponse = client.send(modsetsRequest, HttpResponse.BodyHandlers.ofString());
+                if (modsetsResponse.statusCode() == 200) {
+                    // Estimate based on modsets count and response size
+                    String body = modsetsResponse.body();
                     long estimatedSize = body.length() * 1000; // Rough estimation
                     return estimatedSize;
                 }

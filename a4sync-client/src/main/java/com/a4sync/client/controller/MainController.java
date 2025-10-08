@@ -297,19 +297,25 @@ public class MainController {
             // Show progress while testing connection
             statusLabel.setText("Testing connection to " + newRepo.getName() + "...");
             
-            // Test connection first
+            // Test connection first using health endpoint
             CompletableFuture.supplyAsync(() -> {
                 try {
                     java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
                     java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(newRepo.getUrl() + "/api/modsets"))
+                        .uri(java.net.URI.create(newRepo.getUrl() + "/api/v1/health"))
                         .timeout(java.time.Duration.ofSeconds(10))
                         .GET()
                         .build();
                     
                     java.net.http.HttpResponse<String> response = client.send(request, 
                         java.net.http.HttpResponse.BodyHandlers.ofString());
-                    return response.statusCode() == 200;
+                    
+                    // Check for UP or DEGRADED status (both are acceptable for connection)
+                    if (response.statusCode() == 200) {
+                        String body = response.body();
+                        return body.contains("\"status\":\"UP\"") || body.contains("\"status\":\"DEGRADED\"");
+                    }
+                    return false;
                 } catch (Exception e) {
                     return false;
                 }
