@@ -33,19 +33,8 @@
                     <Button text="Test Connection" onAction="#testSelectedRepository"/>
                 </HBox>
                 
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Mod Directories:"/>
-                    <TextField fx:id="searchDirectoryField" HBox.hgrow="ALWAYS" 
-                             promptText="Add mod directory path..."/>
-                    <Button text="Browse" onAction="#addSearchDirectory"/>
-                </HBox>
-
                 <SplitPane VBox.vgrow="ALWAYS">
                     <VBox spacing="5">
-                        <HBox spacing="5" alignment="CENTER_LEFT">
-                            <Button text="Create Set" onAction="#createModSet"/>
-                            <Button text="Delete Set" onAction="#deleteModSet"/>
-                        </HBox>
                         <ListView fx:id="modSetList" VBox.vgrow="ALWAYS"/>
                     </VBox>
 

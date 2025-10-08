@@ -62,8 +62,6 @@ import com.a4sync.client.model.HealthStatus;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javafx.scene.layout.GridPane;
-import javafx.stage.DirectoryChooser;
-import javafx.scene.control.TextInputDialog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +71,6 @@ import java.util.concurrent.CompletableFuture;
 public class MainController {
     @FXML private TabPane mainTabPane;
     @FXML private ListView<RepositoryModSet> modSetList;
-    @FXML private TextField searchDirectoryField;
     @FXML private ComboBox<Repository> repositoryComboBox;
     @FXML private TextField modSetName;
     @FXML private TextField profileName;
@@ -140,10 +137,6 @@ public class MainController {
         repositoryComboBox.setItems(repositories);
         updatesTable.setItems(updateStatuses);
         gameTypeComboBox.getItems().addAll(GameType.values());
-        
-        // Initialize directories field
-        searchDirectoryField.setText(config.getModDirectories().isEmpty() ? 
-            "" : config.getModDirectories().get(0).toString());
             
         // Setup table columns (used for both mods and modsets)
         modNameColumn.setCellValueFactory(cellData -> 
@@ -470,257 +463,10 @@ public class MainController {
 
     @FXML
     private void testSelectedRepository() {
-        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
-        if (selectedRepo == null) {
-            showError("No Repository Selected", "Please select a repository to test.");
-            return;
-        }
-        
-        // Show progress indicator
-        showInfo("Testing Connection", "Testing connection to " + selectedRepo.getName() + "...");
-        
-        // Test connection in background thread
-        Task<HealthStatus> testTask = new Task<HealthStatus>() {
-            @Override
-            protected HealthStatus call() throws Exception {
-                // Create temporary config for this specific repository
-                ClientConfig tempConfig = new ClientConfig();
-                tempConfig.setServerUrl(selectedRepo.getUrl());
-                tempConfig.setRepositoryPassword(selectedRepo.getPassword());
-                tempConfig.setUseAuthentication(selectedRepo.isUseAuthentication());
-                
-                RepositoryService repoService = new RepositoryService(tempConfig);
-                return repoService.testConnectionAsync().get();
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    HealthStatus healthStatus = getValue();
-                    selectedRepo.setHealthStatus(healthStatus);
-                    selectedRepo.setLastChecked(LocalDateTime.now());
-                    repositoryStatusTable.refresh();
-                    
-                    boolean isHealthy = healthStatus == HealthStatus.HEALTHY;
-                    String status = isHealthy ? "successful" : "failed";
-                    String title = isHealthy ? "Connection Successful" : "Connection Failed";
-                    String message = "Connection test to " + selectedRepo.getName() + " " + status + ".";
-                    
-                    if (isHealthy) {
-                        showInfo(title, message);
-                    } else {
-                        showError(title, message + " Please check the server address and credentials.");
-                    }
-                });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    selectedRepo.setHealthStatus(HealthStatus.ERROR);
-                    selectedRepo.setLastChecked(LocalDateTime.now());
-                    repositoryStatusTable.refresh();
-                    showError("Connection Error", "Failed to test connection to " + selectedRepo.getName() + 
-                             ": " + getException().getMessage());
-                });
-            }
-        };
-        
-        Thread testThread = new Thread(testTask);
-        testThread.setDaemon(true);
-        testThread.start();
+        testSelectedRepositoryFromStatus(); // Use the more efficient async version
     }
 
-    @FXML
-    private void addSearchDirectory() {
-        DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Select Mod Search Directory");
-        chooser.setInitialDirectory(new java.io.File(System.getProperty("user.home")));
-        
-        java.io.File selectedDirectory = chooser.showDialog(searchDirectoryField.getScene().getWindow());
-        if (selectedDirectory != null && selectedDirectory.exists()) {
-            java.nio.file.Path directoryPath = selectedDirectory.toPath();
-            
-            // Check if directory is already added
-            if (config.getModDirectories().contains(directoryPath)) {
-                showInfo("Directory Already Added", "The directory '" + directoryPath + "' is already in your search paths.");
-                return;
-            }
-            
-            // Add directory to configuration
-            config.addModDirectory(directoryPath);
-            config.saveConfig();
-            
-            // Update the UI field to show the first directory (for backward compatibility)
-            if (config.getModDirectories().size() == 1) {
-                searchDirectoryField.setText(directoryPath.toString());
-            } else {
-                // Show count if multiple directories
-                searchDirectoryField.setText(config.getModDirectories().size() + " directories configured");
-            }
-            
-            showInfo("Directory Added", 
-                   "Added mod search directory: " + directoryPath + 
-                   "\n\nTotal search directories: " + config.getModDirectories().size() +
-                   "\n\nA4Sync will now search this directory for local mods when creating mod sets.");
-            
-            statusLabel.setText("Added search directory: " + selectedDirectory.getName());
-        }
-    }
 
-    @FXML
-    private void createModSet() {
-        // Open dialog to create a new mod set from local mods
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Create Mod Set");
-        dialog.setHeaderText("Create New Mod Set");
-        dialog.setContentText("Enter a name for the new mod set:");
-        
-        Optional<String> result = dialog.showAndWait();
-        if (result.isPresent() && !result.get().trim().isEmpty()) {
-            String modSetName = result.get().trim();
-            
-            // Check if mod set name already exists
-            if (modSets.stream().anyMatch(ms -> ms.getModSet().getName().equals(modSetName))) {
-                showError("Duplicate Name", "A mod set with the name '" + modSetName + "' already exists.");
-                return;
-            }
-            
-            // Create new mod set
-            createNewModSet(modSetName);
-        }
-    }
-    
-    private void createNewModSet(String modSetName) {
-        showInfo("Creating Mod Set", "Creating new mod set: " + modSetName);
-        
-        Task<Void> createTask = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                updateMessage("Scanning local mods...");
-                
-                try {
-                    // Create a new ModSet object
-                    ModSet newModSet = new ModSet();
-                    newModSet.setName(modSetName);
-                    newModSet.setDescription("Created from local mods");
-                    newModSet.setVersion("1.0.0");
-                    // Skip setCreatedDate as it may not exist
-                    
-                    // Create RepositoryModSet wrapper for local mod set (no repository)
-                    RepositoryModSet repoModSet = new RepositoryModSet(null, newModSet);
-                    
-                    Platform.runLater(() -> {
-                        modSets.add(repoModSet);
-                        // Save to config if needed
-                        config.saveConfig();
-                    });
-                    
-                } catch (Exception e) {
-                    throw e;
-                }
-                
-                return null;
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    statusLabel.setText("Mod set created: " + modSetName);
-                    showInfo("Mod Set Created", "Successfully created mod set: " + modSetName + 
-                           "\n\nThe mod set has been added to your local collection.");
-                });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    statusLabel.setText("Failed to create mod set: " + modSetName);
-                    showError("Creation Failed", "Failed to create mod set '" + modSetName + "': " + 
-                             getException().getMessage());
-                });
-            }
-        };
-        
-        statusLabel.textProperty().bind(createTask.messageProperty());
-        
-        Thread createThread = new Thread(createTask);
-        createThread.setDaemon(true);
-        createThread.start();
-    }
-
-    @FXML
-    private void deleteModSet() {
-        RepositoryModSet selectedModSet = modSetList.getSelectionModel().getSelectedItem();
-        if (selectedModSet == null) {
-            showError("No Selection", "Please select a mod set to delete.");
-            return;
-        }
-        
-        // Confirm deletion
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Delete Mod Set");
-        confirmation.setHeaderText("Delete " + selectedModSet.getModSet().getName() + "?");
-        confirmation.setContentText("This will permanently delete the mod set and all its files from your system.\n\n" +
-                                   "This action cannot be undone.");
-        
-        Optional<ButtonType> result = confirmation.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) {
-            return;
-        }
-        
-        deleteSelectedModSet(selectedModSet);
-    }
-    
-    private void deleteSelectedModSet(RepositoryModSet repoModSet) {
-        String modSetName = repoModSet.getModSet().getName();
-        showInfo("Deleting Mod Set", "Deleting mod set: " + modSetName);
-        
-        Task<Void> deleteTask = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                updateMessage("Deleting " + modSetName + "...");
-                
-                try {
-                    // For now, just remove from the list
-                    // Full deletion would require ModManager integration
-                    Platform.runLater(() -> {
-                        modSets.remove(repoModSet);
-                        // Save to config
-                        config.saveConfig();
-                    });
-                    
-                } catch (Exception e) {
-                    throw e;
-                }
-                
-                return null;
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    statusLabel.setText("Mod set deleted: " + modSetName);
-                    showInfo("Mod Set Deleted", "Successfully deleted mod set: " + modSetName);
-                });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    statusLabel.setText("Failed to delete mod set: " + modSetName);
-                    showError("Deletion Failed", "Failed to delete mod set '" + modSetName + "': " + 
-                             getException().getMessage());
-                });
-            }
-        };
-        
-        statusLabel.textProperty().bind(deleteTask.messageProperty());
-        
-        Thread deleteThread = new Thread(deleteTask);
-        deleteThread.setDaemon(true);
-        deleteThread.start();
-    }
 
     @FXML
     private void connectToRepository() {
@@ -1341,13 +1087,6 @@ public class MainController {
     }
     
     @FXML
-    private void testAllRepositories() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setContentText("Repository testing feature coming soon!");
-        info.showAndWait();
-    }
-    
-    @FXML
     private void testSelectedRepositoryFromStatus() {
         Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
         if (selectedRepo == null) {
@@ -1401,26 +1140,7 @@ public class MainController {
         });
     }
     
-    @FXML
-    private void refreshSelectedRepositoryFromStatus() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setContentText("Repository refresh feature coming soon!");
-        info.showAndWait();
-    }
-    
-    @FXML
-    private void viewSelectedRepositoryModSets() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setContentText("Repository mod sets view coming soon!");
-        info.showAndWait();
-    }
-    
-    @FXML
-    private void openSelectedRepositoryInBrowser() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setContentText("Open in browser feature coming soon!");
-        info.showAndWait();
-    }
+
     
     private String formatSize(long bytes) {
         if (bytes <= 0) return "Unknown";
