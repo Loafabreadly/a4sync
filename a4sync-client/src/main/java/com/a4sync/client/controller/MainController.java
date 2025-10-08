@@ -73,9 +73,6 @@ public class MainController {
     @FXML private ListView<RepositoryModSet> modSetList;
     @FXML private ComboBox<Repository> repositoryComboBox;
     @FXML private TextField modSetName;
-    @FXML private TextField profileName;
-    @FXML private ComboBox<GameType> gameTypeComboBox;
-    @FXML private CheckBox noSplashCheck;
     @FXML private ListView<String> modList;
     @FXML private TableView<Mod> availableModsTable;
     @FXML private TableColumn<Mod, String> modNameColumn;
@@ -85,12 +82,7 @@ public class MainController {
     @FXML private ProgressBar downloadProgress;
     @FXML private Label statusLabel;
     
-    // Updates table components (now in Repository Management tab)
-    @FXML private TableView<ModSetStatus> updatesTable;
-    @FXML private TableColumn<ModSetStatus, String> updateModSetColumn;
-    @FXML private TableColumn<ModSetStatus, String> updateRepositoryColumn;
-    @FXML private TableColumn<ModSetStatus, String> updateCurrentVersionColumn;
-    @FXML private TableColumn<ModSetStatus, String> updateNewVersionColumn;
+
     
     // Repository status tab components
     @FXML private TableView<Repository> repositoryStatusTable;
@@ -103,11 +95,7 @@ public class MainController {
     @FXML private TableColumn<Repository, String> repoLastUpdatedColumn;
     @FXML private TextArea repositoryDetailsArea;
     
-    // Repository editing fields
-    @FXML private TextField repoEditNameField;
-    @FXML private TextField repoEditUrlField;
-    @FXML private PasswordField repoEditPasswordField;
-    @FXML private CheckBox repoEditEnabledCheck;
+
     
     private final ClientConfig config;
     private final ModManager modManager;
@@ -116,7 +104,7 @@ public class MainController {
     private final ObservableList<RepositoryModSet> modSets;
     private final ObservableList<Mod> availableMods;
     private final ObservableList<Repository> repositories;
-    private final ObservableList<ModSetStatus> updateStatuses;
+
     
     public MainController() {
         this.config = ClientConfig.loadConfig();
@@ -127,7 +115,7 @@ public class MainController {
         this.modSets = FXCollections.observableArrayList();
         this.availableMods = FXCollections.observableArrayList();
         this.repositories = FXCollections.observableArrayList();
-        this.updateStatuses = FXCollections.observableArrayList();
+
     }
 
     @FXML
@@ -135,8 +123,6 @@ public class MainController {
         modSetList.setItems(modSets);
         availableModsTable.setItems(availableMods);
         repositoryComboBox.setItems(repositories);
-        updatesTable.setItems(updateStatuses);
-        gameTypeComboBox.getItems().addAll(GameType.values());
             
         // Setup table columns (used for both mods and modsets)
         modNameColumn.setCellValueFactory(cellData -> 
@@ -149,18 +135,7 @@ public class MainController {
             new SimpleStringProperty(cellData.getValue().getSize() > 0 ? 
                 (modManager.isModInstalled(cellData.getValue()) ? "Installed" : "Download") : "Select"));
             
-        // Setup updates table columns
-        updateModSetColumn.setCellValueFactory(cellData -> 
-            new SimpleStringProperty(cellData.getValue().getRemoteSet().getName()));
-        updateRepositoryColumn.setCellValueFactory(cellData -> 
-            new SimpleStringProperty(cellData.getValue().getRepository().getName()));
-        updateCurrentVersionColumn.setCellValueFactory(cellData -> {
-            ModSetStatus status = cellData.getValue();
-            return new SimpleStringProperty(status.getLocalSet() != null ? 
-                status.getLocalSet().getVersion() : "Not Downloaded");
-        });
-        updateNewVersionColumn.setCellValueFactory(cellData -> 
-            new SimpleStringProperty(cellData.getValue().getRemoteSet().getVersion()));
+        
         
         // Setup repository status table columns
         if (repositoryStatusTable != null) {
@@ -187,7 +162,6 @@ public class MainController {
             repositoryStatusTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldRepo, newRepo) -> {
                     updateRepositoryStatusDetails(newRepo);
-                    populateRepositoryEditFields(newRepo);
                 });
         }
             
@@ -229,21 +203,6 @@ public class MainController {
             ModSet modSet = repositoryModSet.getModSet();
             modSetName.setText(modSet.getName());
             
-            // Load game options from client configuration, not from modset
-            GameOptions clientOptions = config.getDefaultGameOptions();
-            if (clientOptions != null) {
-                profileName.setText(clientOptions.getProfileName() != null ? 
-                    clientOptions.getProfileName() : modSet.getName().toLowerCase());
-                gameTypeComboBox.setValue(clientOptions.getGameType() != null ? 
-                    clientOptions.getGameType() : GameType.ARMA_4);
-                noSplashCheck.setSelected(clientOptions.isNoSplash());
-            } else {
-                // Fallback defaults
-                profileName.setText(modSet.getName().toLowerCase());
-                gameTypeComboBox.setValue(GameType.ARMA_4);
-                noSplashCheck.setSelected(false);
-            }
-            
             modList.getItems().clear();
             if (modSet.getMods() != null) {
                 modList.getItems().addAll(
@@ -254,9 +213,6 @@ public class MainController {
             }
         } else {
             modSetName.clear();
-            profileName.clear();
-            gameTypeComboBox.setValue(null);
-            noSplashCheck.setSelected(false);
             modList.getItems().clear();
         }
     }
@@ -566,99 +522,7 @@ public class MainController {
 
     @FXML
     private void refreshUpdates() {
-        if (repositories.isEmpty()) {
-            showInfo("No Repositories", "No repositories configured. Please add repositories first.");
-            return;
-        }
-
-        showInfo("Refreshing Updates", "Checking all repositories for mod set updates with version comparison...");
-        
-        // Enhanced update checking with version comparison
-        Task<UpdateCheckResult> updateTask = new Task<UpdateCheckResult>() {
-            @Override
-            protected UpdateCheckResult call() throws Exception {
-                updateMessage("Connecting to repositories...");
-                
-                UpdateCheckResult result = new UpdateCheckResult();
-                
-                // Use the existing multi-repository service to get all mod sets
-                CompletableFuture<Map<Repository, List<ModSet>>> allModSetsFuture = 
-                    multiRepositoryService.getAllModSets();
-                
-                Map<Repository, List<ModSet>> repoModSetsMap = allModSetsFuture.get();
-                
-                updateMessage("Analyzing mod sets for updates...");
-                
-                for (Map.Entry<Repository, List<ModSet>> entry : repoModSetsMap.entrySet()) {
-                    Repository repo = entry.getKey();
-                    List<ModSet> remoteModSets = entry.getValue();
-                    
-                    if (remoteModSets != null) {
-                        for (ModSet remoteModSet : remoteModSets) {
-                            // Check if we have this mod set locally
-                            RepositoryModSet localModSet = findLocalModSet(remoteModSet.getName());
-                            
-                            ModSetUpdateInfo updateInfo = new ModSetUpdateInfo();
-                            updateInfo.repositoryName = repo.getName();
-                            updateInfo.modSetName = remoteModSet.getName();
-                            updateInfo.remoteVersion = remoteModSet.getVersion();
-                            updateInfo.remoteSize = remoteModSet.getTotalSize();
-                            updateInfo.lastUpdated = remoteModSet.getLastUpdated();
-                            
-                            if (localModSet == null) {
-                                // Mod set not downloaded
-                                updateInfo.localVersion = "Not Downloaded";
-                                updateInfo.updateStatus = UpdateStatus.NOT_DOWNLOADED;
-                                result.notDownloaded++;
-                            } else {
-                                // Compare versions
-                                updateInfo.localVersion = localModSet.getModSet().getVersion();
-                                int versionComparison = compareVersions(
-                                    localModSet.getModSet().getVersion(), 
-                                    remoteModSet.getVersion()
-                                );
-                                
-                                if (versionComparison < 0) {
-                                    updateInfo.updateStatus = UpdateStatus.UPDATE_AVAILABLE;
-                                    result.updatesAvailable++;
-                                } else if (versionComparison > 0) {
-                                    updateInfo.updateStatus = UpdateStatus.LOCAL_NEWER;
-                                    result.localNewer++;
-                                } else {
-                                    updateInfo.updateStatus = UpdateStatus.UP_TO_DATE;
-                                    result.upToDate++;
-                                }
-                            }
-                            
-                            result.modSetUpdates.add(updateInfo);
-                        }
-                    }
-                }
-                
-                updateMessage("Update check completed");
-                return result;
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    UpdateCheckResult result = getValue();
-                    processUpdateCheckResult(result);
-                });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    showError("Updates Check Failed", "An error occurred while checking for updates: " + 
-                             getException().getMessage());
-                });
-            }
-        };
-        
-        Thread updateThread = new Thread(updateTask);
-        updateThread.setDaemon(true);
-        updateThread.start();
+        showInfo("Feature Coming Soon", "Update checking functionality will be implemented in the future.");
     }
     
     // Enhanced update checking classes and methods
@@ -744,96 +608,18 @@ public class MainController {
         return numericPart.isEmpty() ? 0 : Integer.parseInt(numericPart);
     }
     
-    private void processUpdateCheckResult(UpdateCheckResult result) {
-        // Clear previous results
-        updateStatuses.clear();
-        
-        // Convert ModSetUpdateInfo objects to ModSetStatus objects for the table
-        for (ModSetUpdateInfo updateInfo : result.modSetUpdates) {
-            // Find the repository for this mod set
-            Repository repository = repositories.stream()
-                .filter(repo -> repo.getName().equals(updateInfo.repositoryName))
-                .findFirst()
-                .orElse(null);
-                
-            if (repository != null) {
-                // Create the remote ModSet object
-                ModSet remoteSet = new ModSet();
-                remoteSet.setName(updateInfo.modSetName);
-                remoteSet.setVersion(updateInfo.remoteVersion);
-                remoteSet.setTotalSize(updateInfo.remoteSize);
-                remoteSet.setLastUpdated(updateInfo.lastUpdated);
-                
-                // Find local ModSet if exists
-                RepositoryModSet localRepoModSet = findLocalModSet(updateInfo.modSetName);
-                ModSet localSet = localRepoModSet != null ? localRepoModSet.getModSet() : null;
-                
-                // Create ModSetStatus based on update status
-                ModSetStatus status;
-                switch (updateInfo.updateStatus) {
-                    case NOT_DOWNLOADED:
-                        status = ModSetStatus.notDownloaded(repository, remoteSet);
-                        break;
-                    case UPDATE_AVAILABLE:
-                        status = ModSetStatus.updateAvailable(repository, remoteSet, localSet);
-                        break;
-                    case UP_TO_DATE:
-                        status = ModSetStatus.upToDate(repository, remoteSet, localSet);
-                        break;
-                    default:
-                        continue; // Skip LOCAL_NEWER status for now
-                }
-                
-                // Only add actionable items (not up-to-date) to the updates table
-                if (updateInfo.updateStatus != UpdateStatus.UP_TO_DATE && 
-                    updateInfo.updateStatus != UpdateStatus.LOCAL_NEWER) {
-                    updateStatuses.add(status);
-                }
-            }
-        }
-        
-        // Display comprehensive update summary
-        StringBuilder summary = new StringBuilder();
-        summary.append("Update Check Results:\n\n");
-        summary.append("📦 Available for Download: ").append(result.notDownloaded).append("\n");
-        summary.append("🔄 Updates Available: ").append(result.updatesAvailable).append("\n");
-        summary.append("✅ Up to Date: ").append(result.upToDate).append("\n");
-        summary.append("⬆️ Local Newer: ").append(result.localNewer).append("\n\n");
-        
-        int totalActionable = result.notDownloaded + result.updatesAvailable;
-        if (totalActionable > 0) {
-            summary.append("Total actionable items: ").append(totalActionable);
-        } else {
-            summary.append("All mod sets are up to date!");
-        }
-        
-        showInfo("Update Check Complete", summary.toString());
-        
-        // Update status label
-        if (totalActionable > 0) {
-            statusLabel.setText(totalActionable + " mod sets can be downloaded or updated");
-        } else {
-            statusLabel.setText("All mod sets are up to date");
-        }
-    }
+
 
     @FXML
     private void updateSelectedModSets() {
-        // Check if we have selected mod sets from the updates table first
-        ModSetStatus selectedUpdate = updatesTable.getSelectionModel().getSelectedItem();
-        if (selectedUpdate != null) {
-            downloadSelectedModSetUpdate(selectedUpdate);
-            return;
-        }
-        
-        // Otherwise, check if we have a selected mod set from available mods table
+        // Check if we have a selected mod set from available mods table
         Mod selectedMod = availableModsTable.getSelectionModel().getSelectedItem();
         if (selectedMod != null) {
             downloadSelectedModFromTable(selectedMod);
             return;
         }
         
-        showError("No Selection", "Please select a mod set to download from either the Available Mod Sets or Updates table.");
+        showError("No Selection", "Please select a mod set to download from the Available Mod Sets table.");
     }
     
     private void downloadSelectedModSetUpdate(ModSetStatus modSetStatus) {
@@ -993,85 +779,7 @@ public class MainController {
 
     @FXML
     private void updateAllModSets() {
-        // Get all mod sets that need updates
-        List<ModSetStatus> modSetsToUpdate = updateStatuses.stream()
-            .filter(status -> status.getStatus() == ModSetStatus.Status.UPDATE_AVAILABLE || 
-                            status.getStatus() == ModSetStatus.Status.NOT_DOWNLOADED)
-            .toList();
-            
-        if (modSetsToUpdate.isEmpty()) {
-            showInfo("No Updates Available", "No mod sets need updating. Click 'Refresh Updates' to check for new updates.");
-            return;
-        }
-        
-        // Confirm bulk download
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Download All Updates");
-        confirmation.setHeaderText("Download " + modSetsToUpdate.size() + " mod sets?");
-        confirmation.setContentText("This will download all available mod set updates. This may take a while and use significant bandwidth.");
-        
-        Optional<ButtonType> result = confirmation.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) {
-            return;
-        }
-        
-        showInfo("Bulk Download Started", "Starting download of " + modSetsToUpdate.size() + " mod sets...");
-        
-        // Download all mod sets in background thread
-        Task<Void> downloadAllTask = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                int total = modSetsToUpdate.size();
-                int current = 0;
-                
-                for (ModSetStatus modSetStatus : modSetsToUpdate) {
-                    current++;
-                    updateProgress(current, total);
-                    String modSetName = modSetStatus.getRemoteSet() != null ? modSetStatus.getRemoteSet().getName() : "ModSet " + current;
-                    updateMessage("Processing " + modSetName + " (" + current + "/" + total + ")...");
-                    
-                    // Small delay between operations 
-                    Thread.sleep(100);
-                }
-                
-                updateMessage("Bulk operation completed for " + total + " mod sets");
-                return null;
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    downloadProgress.setProgress(0);
-                    downloadProgress.progressProperty().unbind();
-                    statusLabel.textProperty().unbind();
-                    statusLabel.setText("Bulk download completed.");
-                    
-                    showInfo("Bulk Download Complete", 
-                           "Finished processing all mod sets.\n\n" +
-                           "Note: Full download integration requires complete repository system setup.");
-                });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    downloadProgress.setProgress(0);
-                    downloadProgress.progressProperty().unbind();
-                    statusLabel.textProperty().unbind();
-                    statusLabel.setText("Bulk download failed");
-                    showError("Bulk Download Failed", "An error occurred during bulk download: " + 
-                             getException().getMessage());
-                });
-            }
-        };
-        
-        // Bind progress bar to task
-        downloadProgress.progressProperty().bind(downloadAllTask.progressProperty());
-        statusLabel.textProperty().bind(downloadAllTask.messageProperty());
-        
-        Thread downloadThread = new Thread(downloadAllTask);
-        downloadThread.setDaemon(true);
-        downloadThread.start();
+        showInfo("Feature Coming Soon", "Bulk download functionality will be implemented in the future.");
     }
     
     @FXML
@@ -1221,66 +929,7 @@ public class MainController {
         alert.showAndWait();
     }
 
-    private void populateRepositoryEditFields(Repository repository) {
-        if (repository == null) {
-            repoEditNameField.setText("");
-            repoEditUrlField.setText("");
-            repoEditPasswordField.setText("");
-            repoEditEnabledCheck.setSelected(false);
-        } else {
-            repoEditNameField.setText(repository.getName());
-            repoEditUrlField.setText(repository.getUrl());
-            repoEditPasswordField.setText(repository.getPassword() != null ? repository.getPassword() : "");
-            repoEditEnabledCheck.setSelected(repository.isEnabled());
-        }
-    }
 
-    @FXML
-    private void saveRepositoryChanges() {
-        Repository selectedRepo = repositoryStatusTable.getSelectionModel().getSelectedItem();
-        if (selectedRepo == null) {
-            showError("No Repository Selected", "Please select a repository to edit.");
-            return;
-        }
-
-        String name = repoEditNameField.getText().trim();
-        String url = repoEditUrlField.getText().trim();
-        String password = repoEditPasswordField.getText();
-
-        if (name.isEmpty()) {
-            showError("Invalid Input", "Repository name cannot be empty.");
-            return;
-        }
-
-        if (url.isEmpty()) {
-            showError("Invalid Input", "Repository URL cannot be empty.");
-            return;
-        }
-
-        try {
-            // Update the repository
-            selectedRepo.setName(name);
-            selectedRepo.setUrl(url);
-            selectedRepo.setPassword(password.isEmpty() ? null : password);
-            selectedRepo.setEnabled(repoEditEnabledCheck.isSelected());
-
-            // Save to config
-            config.updateRepository(selectedRepo);
-            config.saveConfig();
-
-            // Refresh the table display
-            repositoryStatusTable.refresh();
-
-            showInfo("Repository Updated", "Repository connection details have been saved successfully.");
-            
-            // Test connection if enabled
-            if (selectedRepo.isEnabled()) {
-                testSelectedRepositoryFromStatus();
-            }
-        } catch (Exception e) {
-            showError("Save Error", "Failed to save repository changes: " + e.getMessage());
-        }
-    }
 
     @FXML
     private void deleteSelectedRepository() {
@@ -1305,9 +954,6 @@ public class MainController {
                 // Remove from config
                 config.removeRepository(selectedRepo.getId());
                 config.saveConfig();
-
-                // Clear edit fields
-                populateRepositoryEditFields(null);
 
                 // Refresh repository combo box in mod sets tab
                 repositoryComboBox.getSelectionModel().clearSelection();
