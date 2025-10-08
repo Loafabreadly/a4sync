@@ -73,7 +73,7 @@ public class ModCommand {
                     if (Files.isDirectory(mod)) {
                         Path indexPath = mod.resolve("mod.json");
                         if (Files.exists(indexPath)) {
-                            ModIndex index = new ObjectMapper().readValue(indexPath.toFile(), ModIndex.class);
+                            ModIndex index = ModUtils.getObjectMapper().readValue(indexPath.toFile(), ModIndex.class);
                             System.out.printf("%s (v%s) - %.2f GB%n", 
                                 index.getName(), 
                                 index.getVersion(), 

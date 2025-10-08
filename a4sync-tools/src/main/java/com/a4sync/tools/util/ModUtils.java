@@ -26,6 +26,13 @@ public class ModUtils {
     private static final int DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024; // 50MB
     
     /**
+     * Get a properly configured ObjectMapper with JSR310 support
+     */
+    public static ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+    
+    /**
      * Creates a mod index for the given mod path
      */
     public static void createModIndex(Path modPath, String version) throws IOException {

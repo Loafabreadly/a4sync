@@ -61,7 +61,7 @@ public class ModSetCommand {
             Path modSetsDir = resolvedPath.resolve("modsets");
             Files.createDirectories(modSetsDir);
             
-            new ObjectMapper().writeValue(
+            ModUtils.getObjectMapper().writeValue(
                 modSetsDir.resolve(name + ".json").toFile(),
                 modSet
             );
@@ -97,7 +97,9 @@ public class ModSetCommand {
             
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(modSetsDir, "*.json")) {
                 for (Path modSetFile : stream) {
-                    ModSet modSet = new ObjectMapper().readValue(modSetFile.toFile(), ModSet.class);
+                    if (Files.exists(modSetFile)) {
+                    ModSet modSet = ModUtils.getObjectMapper().readValue(modSetFile.toFile(), ModSet.class);
+                    System.out.println("Mod Set: " + modSet.getName());
                     System.out.printf("%s - %s%n", modSet.getName(), modSet.getDescription());
                     if (modSet.getMods() != null) {
                         modSet.getMods().forEach(mod -> System.out.printf("  - %s%n", mod));
@@ -139,7 +141,7 @@ public class ModSetCommand {
                 return 1;
             }
             
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = ModUtils.getObjectMapper();
             ModSet modSet = mapper.readValue(modSetFile.toFile(), ModSet.class);
             
             // Build a map of existing mods for fast lookup
@@ -235,7 +237,7 @@ public class ModSetCommand {
                 return 1;
             }
             
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = ModUtils.getObjectMapper();
             ModSet modSet = mapper.readValue(modSetFile.toFile(), ModSet.class);
             
             if (modSet.getMods() != null) {
@@ -271,4 +273,5 @@ public class ModSetCommand {
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
+}
 }
