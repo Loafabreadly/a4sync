@@ -16,7 +16,6 @@ A4Sync is a military-grade mod synchronization tool for Arma 3/4 built as a Mave
 
 #### Server Services (`a4sync-server`)
 - `ModSetService`: Repository discovery, modset management, A4Sync config generation, and file size calculations
-- `ModManagementService`: Modset CRUD operations with Discord notification integration
 - `DiscordWebhookService`: Rich Discord embed notifications for modset updates with customizable appearance
 - `HealthService`: System health monitoring and status reporting via Spring Boot Actuator
 

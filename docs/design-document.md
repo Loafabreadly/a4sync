@@ -63,7 +63,8 @@ A4Sync is a comprehensive mod synchronization platform designed for military uni
 - `ModIndex`: Chunked file metadata for resumable downloads
 
 #### a4sync-server
-**Purpose**: REST API server for mod distribution
+**Purpose**: Read-only REST API server for mod distribution and repository information
+**Philosophy**: The server focuses solely on serving files and providing repository metadata. Administrative operations (creating modsets, managing mods) are handled via CLI tools to maintain clear separation of concerns and security.
 **Key Components**:
 - `ModController`: HTTP endpoints for mod/modset operations
 - `ModSetService`: Business logic for repository management

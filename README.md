@@ -134,7 +134,7 @@ java -jar a4sync-server.jar
 
 ## 📋 API Endpoints
 
-The A4Sync server provides a comprehensive REST API:
+The A4Sync server provides a **read-only** REST API focused on file distribution:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -143,7 +143,10 @@ The A4Sync server provides a comprehensive REST API:
 | `/api/v1/modsets/{modset}/mods/{mod}` | GET | Download mod files (Range support) |
 | `/api/v1/repository/info` | GET | Repository metadata and statistics |
 | `/api/v1/health` | GET | Health check endpoint |
+| `/api/v1/version` | GET | Server version information |
 | `/a4sync.json` | GET | A4Sync configuration (auto-discovery) |
+
+> **Note**: Repository administration (creating modsets, adding mods) is handled via CLI tools, not HTTP endpoints. This maintains clear separation between read-only distribution and write operations.
 
 Full API documentation available at `/swagger-ui/` when server is running.
 
