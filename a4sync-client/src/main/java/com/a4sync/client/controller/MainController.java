@@ -1,13 +1,48 @@
 package com.a4sync.client.controller;
 
+/**
+ * Main controller for the A4Sync client application.
+ * 
+ * This controller implements the desired repository connection flow:
+ * 
+ * REPOSITORY CONNECTION FLOW:
+ * ===========================
+ * When a new repository is added or connected to:
+ * 
+ * 1. HEALTH API CHECK (/api/v1/health)
+ *    - Hit the health endpoint to determine repository state (UP/DEGRADED/DOWN)
+ *    - Validate server accessibility and authentication
+ *    - Update repository status in UI
+ * 
+ * 2. MODSETS API FETCH (/api/v1/repository/info and /api/v1/modsets)
+ *    - Retrieve repository information including modset count and metadata
+ *    - Get list of available modsets with basic information
+ *    - Populate UI components with modset information for user selection
+ * 
+ * 3. MODSET DOWNLOAD FLOW (/api/v1/modsets/{name} and /api/v1/modsets/{modset}/mods/{mod})
+ *    - When user selects a modset, fetch detailed modset information
+ *    - Download individual mod files using the chunked download system
+ *    - Provide real-time progress feedback and error handling
+ * 
+ * Key Methods:
+ * - addRepository(): Implements steps 1-2 for new repositories
+ * - connectToRepository(): Implements steps 1-2 for existing repositories  
+ * - downloadSelectedModFromTable(): Implements step 3 for modset downloads
+ * 
+ * This ensures consistent API usage and proper separation of concerns between
+ * health checking, repository discovery, and file downloads.
+ */
+
 import com.a4sync.client.config.ClientConfig;
 import com.a4sync.client.model.Repository;
 import com.a4sync.client.model.RepositoryModSet;
 import com.a4sync.client.model.ModSetStatus;
 import com.a4sync.client.service.GameLauncher;
 import com.a4sync.client.service.ModManager;
+import com.a4sync.client.service.ModSetDownloadService;
 import com.a4sync.client.service.MultiRepositoryService;
 import com.a4sync.client.service.RepositoryService;
+import com.a4sync.client.model.DownloadResult;
 import com.a4sync.common.model.GameOptions;
 import com.a4sync.common.model.GameType;
 import com.a4sync.common.model.Mod;
@@ -298,52 +333,53 @@ public class MainController {
         if (result.isPresent()) {
             Repository newRepo = result.get();
             
-            // Show progress while testing connection
-            statusLabel.setText("Testing connection to " + newRepo.getName() + "...");
+            // Show progress while following the repository connection flow
+            statusLabel.setText("Step 1: Testing connection to " + newRepo.getName() + "...");
+            downloadProgress.setProgress(-1.0); // Indeterminate progress
             
-            // Test connection first using health endpoint
-            CompletableFuture.supplyAsync(() -> {
-                try {
-                    java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
-                    java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(newRepo.getUrl() + "/api/v1/health"))
-                        .timeout(java.time.Duration.ofSeconds(10))
-                        .GET()
-                        .build();
-                    
-                    java.net.http.HttpResponse<String> response = client.send(request, 
-                        java.net.http.HttpResponse.BodyHandlers.ofString());
-                    
-                    // Check for UP or DEGRADED status (both are acceptable for connection)
-                    if (response.statusCode() == 200) {
-                        String body = response.body();
-                        return body.contains("\"status\":\"UP\"") || body.contains("\"status\":\"DEGRADED\"");
-                    }
-                    return false;
-                } catch (Exception e) {
-                    return false;
-                }
-            }).thenAccept(connectionSuccess -> Platform.runLater(() -> {
-                if (connectionSuccess) {
-                    multiRepositoryService.addRepository(newRepo);
+            // Use the proper repository connection flow via MultiRepositoryService
+            multiRepositoryService.addRepositoryWithValidation(newRepo).thenAccept(validatedRepo -> {
+                Platform.runLater(() -> {
+                    // Repository successfully validated and added
                     config.saveConfig(); // Save the configuration to persist the repository
                     loadRepositories();
-                    repositoryComboBox.getSelectionModel().select(newRepo);
+                    repositoryComboBox.getSelectionModel().select(validatedRepo);
                     
-                    statusLabel.setText("Repository '" + newRepo.getName() + "' added successfully!");
+                    statusLabel.setText("✓ Repository '" + validatedRepo.getName() + "' added successfully!");
+                    downloadProgress.setProgress(0);
                     
                     Alert success = new Alert(Alert.AlertType.INFORMATION);
                     success.setTitle("Repository Added");
-                    success.setHeaderText("Success!");
-                    success.setContentText("Repository '" + newRepo.getName() + "' has been added and is accessible.");
+                    success.setHeaderText("Connection Flow Completed Successfully!");
+                    success.setContentText("Repository '" + validatedRepo.getName() + "' has been added!\n\n" +
+                                          "Connection Flow Results:\n" +
+                                          "✓ Step 1: Health API check - " + validatedRepo.getHealthStatus().name() + "\n" +
+                                          "✓ Step 2: Modsets API fetch - " + validatedRepo.getModSetCount() + " modsets found\n" +
+                                          "✓ Step 3: Repository populated with server data\n\n" +
+                                          "Repository Details:\n" +
+                                          "• Name: " + validatedRepo.getName() + "\n" +
+                                          "• Available Modsets: " + validatedRepo.getModSetCount() + "\n" +
+                                          "• Last Updated: " + validatedRepo.getLastUpdated().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) + "\n\n" +
+                                          "You can now connect to this repository to download modsets.");
                     success.showAndWait();
-                } else {
-                    statusLabel.setText("Failed to connect to repository");
+                });
+            }).exceptionally(throwable -> {
+                Platform.runLater(() -> {
+                    newRepo.setHealthStatus(HealthStatus.ERROR);
+                    newRepo.setLastChecked(LocalDateTime.now());
+                    statusLabel.setText("✗ Repository connection flow failed");
+                    downloadProgress.setProgress(0);
                     
                     Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
                     confirm.setTitle("Connection Failed");
-                    confirm.setHeaderText("Could not connect to repository");
-                    confirm.setContentText("The repository is not accessible right now. Add it anyway?");
+                    confirm.setHeaderText("Repository Connection Flow Failed");
+                    confirm.setContentText("Failed to complete connection flow for " + newRepo.getName() + 
+                                          "\n\nConnection Flow Status:\n" +
+                                          (throwable.getMessage().contains("health") ? "✗" : "✓") + " Step 1: Health API check\n" +
+                                          (throwable.getMessage().contains("health") ? "-" : "✗") + " Step 2: Modsets API fetch\n" +
+                                          "- Step 3: Repository population\n\n" +
+                                          "Error: " + throwable.getMessage() + 
+                                          "\n\nThe repository may be offline or inaccessible. Add it anyway?");
                     
                     Optional<ButtonType> confirmResult = confirm.showAndWait();
                     if (confirmResult.isPresent() && confirmResult.get() == ButtonType.OK) {
@@ -353,8 +389,9 @@ public class MainController {
                         repositoryComboBox.getSelectionModel().select(newRepo);
                         statusLabel.setText("Repository '" + newRepo.getName() + "' added (offline)");
                     }
-                }
-            }));
+                });
+                return null;
+            });
         }
     }
     
@@ -697,33 +734,44 @@ public class MainController {
         RepositoryService repositoryService = new RepositoryService(config);
         repositoryService.setRepositoryUrl(selectedRepo.getUrl());
 
-        statusLabel.setText("Connecting to " + selectedRepo.getName() + "...");
-                downloadProgress.setProgress(-1.0); // Indeterminate progress        // First test the connection
+        // Follow desired repository connection flow:
+        // 1. Hit health API endpoint to determine repository state
+        // 2. Hit modsets endpoint to get repository details and modset information  
+        // 3. Populate UI components with modsets available for download
+
+        statusLabel.setText("Step 1: Checking repository health...");
+        downloadProgress.setProgress(-1.0); // Indeterminate progress
+        
+        // Step 1: Hit the health API endpoint to determine repository state
         repositoryService.testConnectionAsync().thenCompose(healthStatus -> {
             if (healthStatus == HealthStatus.ERROR) {
-                throw new RuntimeException("Failed to connect to repository");
+                throw new RuntimeException("Repository health check failed - server may be down or unreachable");
             }
             
             Platform.runLater(() -> {
-                statusLabel.setText("Loading repository info from " + selectedRepo.getName() + "...");
+                selectedRepo.setHealthStatus(healthStatus);
+                selectedRepo.setLastChecked(LocalDateTime.now());
+                statusLabel.setText("Step 2: Repository is " + healthStatus.name().toLowerCase() + ", fetching modsets...");
             });
             
-            // Load repository info (lightweight - just modset names and count)
+            // Step 2: Hit modsets endpoint to determine available modsets and repository details
             return repositoryService.getRepositoryInfo();
         }).thenAccept(repositoryInfo -> {
             Platform.runLater(() -> {
-                // Update repository with info from server
+                statusLabel.setText("Step 3: Populating modsets in client UI...");
+                
+                // Step 3: Update repository with comprehensive info from server
                 selectedRepo.setHealthStatus(HealthStatus.HEALTHY);
-                selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                selectedRepo.setLastChecked(LocalDateTime.now());
                 selectedRepo.setName(repositoryInfo.getName()); // Use server's repository name
                 int modSetCount = repositoryInfo.getModSets() != null ? repositoryInfo.getModSets().size() : 0;
                 selectedRepo.setModSetCount(modSetCount);
                 selectedRepo.setLastUpdated(repositoryInfo.getLastUpdated());
                 
-                // Clear available mods table and show modsets for selection instead
+                // Clear available mods table and populate with modsets available for download
                 availableMods.clear();
                 
-                // Display modset summaries (name, description, version)
+                // Populate UI with modset information for user selection
                 if (repositoryInfo.getModSets() != null) {
                     repositoryInfo.getModSets().forEach(modSet -> {
                         // Create a pseudo-mod entry to display modset info in the table
@@ -736,26 +784,35 @@ public class MainController {
                 }
 
                 repositoryStatusTable.refresh();
-                statusLabel.setText("Connected to " + selectedRepo.getName() + " - " + 
-                                  modSetCount + " mod sets available for download");
+                statusLabel.setText("✓ Connection complete: " + selectedRepo.getName() + " - " + 
+                                  modSetCount + " modsets ready for download");
                 downloadProgress.setProgress(0);
                 
                 showInfo("Repository Connected", "Successfully connected to " + selectedRepo.getName() + 
-                        "\n\nRepository: " + repositoryInfo.getName() +
-                        "\nLast Updated: " + repositoryInfo.getLastUpdated().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
-                        "\nAvailable Mod Sets: " + modSetCount +
-                        "\n\nSelect a mod set from the table to download it.");
+                        "\n\nConnection Flow Completed:" +
+                        "\n✓ Health check: " + selectedRepo.getHealthStatus().name() +
+                        "\n✓ Repository info: Retrieved" +
+                        "\n✓ Modsets loaded: " + modSetCount + " available" +
+                        "\n\nRepository Details:" +
+                        "\n• Name: " + repositoryInfo.getName() +
+                        "\n• Last Updated: " + repositoryInfo.getLastUpdated().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
+                        "\n\nNext: Select a modset from the table to download its mods.");
             });
         }).exceptionally(throwable -> {
             Platform.runLater(() -> {
                 selectedRepo.setHealthStatus(HealthStatus.ERROR);
-                selectedRepo.setLastChecked(java.time.LocalDateTime.now());
+                selectedRepo.setLastChecked(LocalDateTime.now());
                 repositoryStatusTable.refresh();
-                statusLabel.setText("Failed to connect to repository");
+                statusLabel.setText("✗ Connection failed at step " + 
+                    (throwable.getMessage().contains("health") ? "1 (health check)" : "2 (modsets fetch)"));
                 downloadProgress.setProgress(0);
                 showError("Connection Failed", "Failed to connect to " + selectedRepo.getName() + 
-                        "\n\nError: " + throwable.getMessage() + 
-                        "\n\nPlease verify the server is running and accessible.");
+                        "\n\nConnection Flow:" +
+                        "\n" + (throwable.getMessage().contains("health") ? "✗" : "✓") + " Step 1: Health API check" +
+                        "\n" + (throwable.getMessage().contains("health") ? "-" : "✗") + " Step 2: Modsets API fetch" +
+                        "\n- Step 3: UI population" +
+                        "\n\nError Details: " + throwable.getMessage() + 
+                        "\n\nPlease verify the server is running and accessible at: " + selectedRepo.getUrl());
             });
             return null;
         });
@@ -1096,53 +1153,96 @@ public class MainController {
             return;
         }
         
-        showInfo("Download Starting", "Starting download of " + selectedMod.getName() + 
-                " from " + connectedRepo.getName());
+        // The selected "mod" is actually a modset entry (from our UI population in connectToRepository)
+        String modSetName = selectedMod.getName();
         
-        // Start download in background thread
-        Task<Void> downloadTask = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                updateMessage("Downloading " + selectedMod.getName() + "...");
+        statusLabel.setText("Preparing to download modset: " + modSetName);
+        downloadProgress.setProgress(-1.0); // Indeterminate progress
+        
+        // Create repository service for the connected repository
+        RepositoryService repositoryService = new RepositoryService(config);
+        repositoryService.setRepositoryUrl(connectedRepo.getUrl());
+        
+        showInfo("Modset Download Starting", "Starting download of modset '" + modSetName + 
+                "' from " + connectedRepo.getName() + 
+                "\n\nThis will follow the proper download flow:\n" +
+                "1. ✓ Health check (already completed)\n" +
+                "2. Fetch detailed modset information\n" +
+                "3. Download individual mod files from the modset");
+        
+        // Follow the desired modset download flow:
+        // Step 1: Health check already completed (repository is connected)
+        // Step 2: Get specific modset details to see what mods need to be downloaded
+        // Step 3: Download individual mod files from the modset
+        
+        statusLabel.setText("Step 2: Fetching modset details for " + modSetName + "...");
+        
+        repositoryService.getSpecificModSet(modSetName).thenAccept(modSet -> {
+            Platform.runLater(() -> {
+                statusLabel.setText("Step 3: Starting download of " + modSet.getMods().size() + " mods...");
                 
-                try {
-                    // Use existing download functionality
-                    statusLabel.setText("Download functionality available - using existing mod download system");
-                    
-                } catch (Exception e) {
-                    throw e;
-                }
+                // Now we have the complete modset with all mods, initiate the download
+                ModSetDownloadService downloadService = new ModSetDownloadService(modManager, config);
                 
-                return null;
-            }
-            
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    downloadProgress.setProgress(1.0);
-                    statusLabel.setText("Download completed: " + selectedMod.getName());
-                    showInfo("Download Complete", "Successfully downloaded " + selectedMod.getName());
+                CompletableFuture<DownloadResult> downloadFuture = downloadService.downloadModSet(
+                    modSet, 
+                    connectedRepo.getUrl(),
+                    progress -> {
+                        // Update UI with download progress
+                        Platform.runLater(() -> {
+                            double overallProgress = (double) progress.getCompletedMods() / progress.getTotalMods();
+                            downloadProgress.setProgress(overallProgress);
+                            statusLabel.setText(String.format("Downloading modset '%s': %s (%d/%d mods completed)", 
+                                modSetName, 
+                                progress.getCurrentModName(), 
+                                progress.getCompletedMods(), 
+                                progress.getTotalMods()));
+                        });
+                    }
+                );
+                
+                downloadFuture.thenAccept(result -> {
+                    Platform.runLater(() -> {
+                        downloadProgress.setProgress(1.0);
+                        statusLabel.setText("✓ Modset download completed: " + modSetName);
+                        
+                        String resultMessage = String.format("Modset '%s' download completed!\n\n" +
+                                "Download Results:\n" +
+                                "• Successfully downloaded: %d mods\n" +
+                                "• Failed downloads: %d mods\n" +
+                                "• Skipped (already installed): %d mods\n\n" +
+                                "The modset is now ready for use.", 
+                                modSetName, result.getSuccessful(), result.getFailed(), result.getSkipped());
+                        
+                        if (result.getFailed() > 0) {
+                            showError("Download Completed with Errors", resultMessage);
+                        } else {
+                            showInfo("Download Completed Successfully", resultMessage);
+                        }
+                    });
+                }).exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        downloadProgress.setProgress(0);
+                        statusLabel.setText("✗ Modset download failed: " + modSetName);
+                        showError("Modset Download Failed", 
+                                "Failed to download modset '" + modSetName + "'\n\n" +
+                                "Error: " + throwable.getMessage() + 
+                                "\n\nPlease check your connection and try again.");
+                    });
+                    return null;
                 });
-            }
-            
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    downloadProgress.setProgress(0);
-                    statusLabel.setText("Download failed: " + selectedMod.getName());
-                    showError("Download Failed", "Failed to download " + selectedMod.getName() + 
-                             ": " + getException().getMessage());
-                });
-            }
-        };
-        
-        // Bind progress bar to task
-        downloadProgress.progressProperty().bind(downloadTask.progressProperty());
-        statusLabel.textProperty().bind(downloadTask.messageProperty());
-        
-        Thread downloadThread = new Thread(downloadTask);
-        downloadThread.setDaemon(true);
-        downloadThread.start();
+            });
+        }).exceptionally(throwable -> {
+            Platform.runLater(() -> {
+                downloadProgress.setProgress(0);
+                statusLabel.setText("✗ Failed to fetch modset details");
+                showError("Modset Details Failed", 
+                        "Failed to get details for modset '" + modSetName + "'\n\n" +
+                        "Error: " + throwable.getMessage() + 
+                        "\n\nThe modset may not exist or the server may be unavailable.");
+            });
+            return null;
+        });
     }
 
     @FXML

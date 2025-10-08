@@ -42,6 +42,43 @@ public class MultiRepositoryService {
         repositoryServices.put(repository.getId(), createRepositoryService(repository));
     }
     
+    /**
+     * Add repository following the proper connection flow:
+     * 1. Hit health API endpoint to determine repository state
+     * 2. Hit modsets endpoint to get repository details and modset count
+     * 3. Populate repository object with server information
+     * @param repository The repository to add and validate
+     * @return CompletableFuture that completes when the full flow is done
+     */
+    public CompletableFuture<Repository> addRepositoryWithValidation(Repository repository) {
+        // Create temporary service for validation
+        RepositoryService tempService = createRepositoryService(repository);
+        
+        // Step 1: Health API check
+        return tempService.testConnectionAsync().thenCompose(healthStatus -> {
+            repository.setHealthStatus(healthStatus);
+            repository.setLastChecked(java.time.LocalDateTime.now());
+            
+            if (healthStatus == HealthStatus.ERROR) {
+                throw new RuntimeException("Repository health check failed");
+            }
+            
+            // Step 2: Get repository info and modset count
+            return tempService.getRepositoryInfo();
+        }).thenApply(repositoryInfo -> {
+            // Step 3: Populate repository with server information
+            repository.setName(repositoryInfo.getName());
+            int modSetCount = repositoryInfo.getModSets() != null ? repositoryInfo.getModSets().size() : 0;
+            repository.setModSetCount(modSetCount);
+            repository.setLastUpdated(repositoryInfo.getLastUpdated());
+            
+            // Add to configuration and services
+            addRepository(repository);
+            
+            return repository;
+        });
+    }
+    
     public void removeRepository(String repositoryId) {
         config.removeRepository(repositoryId);
         repositoryServices.remove(repositoryId);

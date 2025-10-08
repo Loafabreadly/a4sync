@@ -272,6 +272,46 @@ public class RepositoryService {
         }
     }
     
+    /**
+     * Get specific modset details by name from the repository.
+     * This follows step 2 of the connection flow - hitting the modsets endpoint for detailed information.
+     * @param modSetName The name of the modset to retrieve
+     * @return CompletableFuture containing the ModSet details
+     */
+    public CompletableFuture<ModSet> getSpecificModSet(String modSetName) {
+        HttpRequest request = createRequestBuilder("/api/v1/modsets/" + modSetName)
+            .GET()
+            .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenApply(response -> {
+                if (response.statusCode() == 429) {
+                    String retryAfter = response.headers()
+                        .firstValue("X-Rate-Limit-Retry-After")
+                        .orElse("60");
+                    log.warn("Rate limit hit, retry after {} seconds", retryAfter);
+                    throw new RateLimitExceededException(Long.parseLong(retryAfter));
+                }
+                if (response.statusCode() == 401) {
+                    throw new AuthenticationFailedException("Invalid repository password");
+                }
+                if (response.statusCode() == 404) {
+                    throw new RuntimeException("Modset not found: " + modSetName);
+                }
+                if (response.statusCode() != 200) {
+                    throw new RuntimeException("Unexpected response: " + response.statusCode());
+                }
+                return response.body();
+            })
+            .thenApply(body -> {
+                try {
+                    return objectMapper.readValue(body, ModSet.class);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to parse modset details", e);
+                }
+            });
+    }
+
     public long getRepositorySize() {
         try {
             HttpRequest request = createRequestBuilder("/api/v1/repository/size")
