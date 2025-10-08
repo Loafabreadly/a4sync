@@ -1,5 +1,6 @@
 package com.a4sync.client.service;
 
+import com.a4sync.client.model.DownloadProgress;
 import com.a4sync.common.model.Mod;
 import com.a4sync.client.config.ClientConfig;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class ModManager {
     }
     
     public CompletableFuture<Void> downloadMod(Mod mod, String modSetName, String repositoryUrl, 
-            Consumer<ChunkedDownloadService.DownloadProgress> progressCallback) {
+            Consumer<DownloadProgress> progressCallback) {
         Path targetDir = selectTargetDirectory(mod);
         Path targetPath = targetDir.resolve(mod.getName());
         

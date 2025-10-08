@@ -11,12 +11,5 @@ public class ModIndex {
     private String hash;            // Overall mod hash
     private String lastUpdated;     // When the mod was last updated (ISO format string)
     private List<ModFile> files;    // Files in the mod
-    
-    @Data
-    public static class ModFile {
-        private String path;        // Relative path in mod
-        private long size;          // File size in bytes
-        private String hash;        // File hash
-        private List<ModChunk> chunks; // File chunks for download
-    }
+
 }

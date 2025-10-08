@@ -14,13 +14,5 @@ public class RepositoryInfo {
     private List<ModSet> modSets;
     private int modSetCount;
     private RepositoryConfig config;
-    
-    @Data
-    public static class RepositoryConfig {
-        private long maxChunkSize;
-        private int parallelDownloads;
-        private boolean authenticationRequired;
-        private boolean compressionEnabled;
-        private String supportedClientVersion;
-    }
+
 }

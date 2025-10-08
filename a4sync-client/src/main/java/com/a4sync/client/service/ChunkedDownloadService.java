@@ -1,5 +1,6 @@
 package com.a4sync.client.service;
 
+import com.a4sync.client.model.DownloadProgress;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,47 +24,7 @@ public class ChunkedDownloadService {
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 1000;
     
-    @Data
-    public static class DownloadProgress {
-        private final long totalBytes;
-        private final AtomicLong downloadedBytes = new AtomicLong(0);
-        private final long startTime = System.currentTimeMillis();
-        private volatile boolean cancelled = false;
-        private volatile String status = "Starting";
-        
-        public DownloadProgress(long totalBytes) {
-            this.totalBytes = totalBytes;
-        }
-        
-        public double getProgressPercentage() {
-            if (totalBytes <= 0) return 0;
-            return (double) downloadedBytes.get() / totalBytes * 100.0;
-        }
-        
-        public long getDownloadSpeed() {
-            long elapsed = System.currentTimeMillis() - startTime;
-            if (elapsed <= 0) return 0;
-            return (downloadedBytes.get() * 1000) / elapsed; // bytes per second
-        }
-        
-        public long getEstimatedTimeRemaining() {
-            long speed = getDownloadSpeed();
-            if (speed <= 0) return -1;
-            return (totalBytes - downloadedBytes.get()) / speed;
-        }
-        
-        public boolean isCancelled() {
-            return cancelled;
-        }
-        
-        public void setStatus(String status) {
-            this.status = status;
-        }
-        
-        public AtomicLong getDownloadedBytes() {
-            return downloadedBytes;
-        }
-    }
+
     
     public CompletableFuture<Boolean> downloadFile(
             String url, 

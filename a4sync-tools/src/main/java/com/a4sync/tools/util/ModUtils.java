@@ -1,6 +1,7 @@
 package com.a4sync.tools.util;
 
 import com.a4sync.common.model.ModChunk;
+import com.a4sync.common.model.ModFile;
 import com.a4sync.common.model.ModIndex;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -44,7 +45,7 @@ public class ModUtils {
         modIndex.setVersion(version);
         modIndex.setLastUpdated(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         
-        List<ModIndex.ModFile> files = new ArrayList<>();
+        List<ModFile> files = new ArrayList<>();
         final long[] totalSize = {0}; // Use array to make it effectively final
         
         // Scan all files in the mod directory
@@ -56,7 +57,7 @@ public class ModUtils {
                     long fileSize = attrs.size();
                     totalSize[0] += fileSize;
                     
-                    ModIndex.ModFile modFile = new ModIndex.ModFile();
+                    ModFile modFile = new ModFile();
                     modFile.setPath(relativePath.toString().replace('\\', '/'));
                     modFile.setSize(fileSize);
                     modFile.setHash(calculateFileHash(file));
@@ -143,12 +144,12 @@ public class ModUtils {
     /**
      * Calculates overall mod hash based on file hashes
      */
-    private static String calculateModHash(List<ModIndex.ModFile> files) {
+    private static String calculateModHash(List<ModFile> files) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             
             // Hash all file hashes together for a mod hash
-            for (ModIndex.ModFile file : files) {
+            for (ModFile file : files) {
                 digest.update(file.getHash().getBytes());
             }
             

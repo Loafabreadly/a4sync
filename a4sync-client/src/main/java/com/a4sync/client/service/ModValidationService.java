@@ -1,6 +1,7 @@
 package com.a4sync.client.service;
 
-import lombok.Data;
+import com.a4sync.client.model.ModInfo;
+import com.a4sync.client.model.ValidationResult;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -20,33 +21,7 @@ public class ModValidationService {
     private static final Pattern BIKEY_FILE_PATTERN = Pattern.compile(".*\\.bikey$", Pattern.CASE_INSENSITIVE);
     private static final Pattern BISIGN_FILE_PATTERN = Pattern.compile(".*\\.bisign$", Pattern.CASE_INSENSITIVE);
     
-    @Data
-    public static class ValidationResult {
-        private final boolean valid;
-        private final List<String> errors;
-        private final List<String> warnings;
-        private final ModInfo modInfo;
-        
-        public ValidationResult(boolean valid, List<String> errors, List<String> warnings, ModInfo modInfo) {
-            this.valid = valid;
-            this.errors = errors != null ? errors : new ArrayList<>();
-            this.warnings = warnings != null ? warnings : new ArrayList<>();
-            this.modInfo = modInfo;
-        }
-    }
-    
-    @Data
-    public static class ModInfo {
-        private String name;
-        private String version;
-        private long totalSize;
-        private int pboCount;
-        private int bikeyCount;
-        private boolean hasMod_cpp;
-        private boolean hasAddonsFolder;
-        private boolean hasKeysFolder;
-        private List<String> requiredAddons = new ArrayList<>();
-    }
+
     
     public ValidationResult validateModFolder(Path modPath) {
         List<String> errors = new ArrayList<>();
